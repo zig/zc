@@ -87,9 +87,9 @@ function dbgmessage(msg) {
 }
 
 // emit an error, optionally print information about status in source where the error occured
-function emiterror(msg, source) {
+function emiterror(msg, psource) {
 	var p="";
-	source = source || cursource;
+	psource = psource || source;
 	if (source)
     		p = format("%s (%d) at token '%s' : ", source.filename, source.nline || -1, source.token || "<null>");
 	_message(p..msg);
@@ -157,7 +157,7 @@ function closesource(source) {
 		source.handle:close();
 		source.handle = nil;
 	}
-	cursource = nil;
+	source = nil;
 }
 
 function getline(source) {
@@ -184,8 +184,9 @@ function gotopos(source, pos) {
 	return gettoken(source);
 }
 
-function gettoken(source) {
-	cursource = source;
+function gettoken(psource) {
+	source = psource or source;
+	var source = source;
 	var pos = source.tokenpos;
 	var token = source.tokens[pos];
 	source.token = token;

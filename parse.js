@@ -2,43 +2,83 @@
 types = { };
 vars = { };
 
-function gettype(source, token) {
+namespace = {
+    kind = "namespace",
+    vars = vars,
+    types = types,
+};
+
+function settype(name, type) {
+    if (types[name])
+	emiterror("shadowing existing type");
+    types[name] = type;
+}
+
+function gettype(name, ns) {
+    ns = ns or namespace;
+    var res = ns.types[name];
+    if (res)
+	return res;
+    else if (ns.parent)
+	return gettype(name, ns.parent);
+    else
+	return nil;
+}
+
+function setvar(name, v) {
+    if (vars[name])
+	emiterror("shadowing existing variable");
+    vars[name] = v;
+}
+
+function getvar(name) {
+    ns = ns or namespace;
+    var res = ns.vars[name];
+    if (res)
+	return res;
+    else if (ns.parent)
+	return getvar(name, ns.parent);
+    else
+	return nil;
+}
+
+function processtype(token) {
     var name = token;
-    var t = types[name];
+    var t = gettype(name);
     if (!t) {
 	t = {
 	    name = name,
 	    incomplete = true
 	};
-	types[name] = t;
+	settype(name, t);
     }
-    token = gettoken(source);
+    token = gettoken();
     return token, t;
 }
 
-function checksemicolon(source, token) {
+function checksemicolon(token) {
     if (token != ';')
-	emiterror("expected ';'", source);
+	emiterror("expected ';'");
     //else
-	token = gettoken(source);
+	token = gettoken();
     return token;
 }
 
-function processterm(source, token) {
+function processterm(token) {
     var res;
 
     if (token == '(') {
-	token, res = processexpression(source, gettoken(source), 0);
+	token, res = processexpression(gettoken(), 0);
 	if (token != ')')
-	    emiterror("')' expected", source);
+	    emiterror("')' expected");
 	else
-	    token = gettoken(source);
+	    token = gettoken();
     } else if (source.tokentype == "word") {
 	res = {
 	    kind = "varref",
 	    target = token,
 	};
-	token = gettoken(source);
+	token = gettoken();
     } else
 	res = {
 	    kind = "nil";
@@ -66,18 +106,18 @@ operators = {
     },
 };
 
-function processexpression(source, token, prio) {
+function processexpression(token, prio) {
     var res;
     prio = prio or 0;
 
-    token, res = processterm(source, token);
+    token, res = processterm(token);
 
     while (true) {
 	var op = operators[token];
 	
 	// binary operators
 	if (op && op.prio >= prio) {
-	    token, right = processexpression(source, gettoken(source), op.prio);
+	    token, right = processexpression(gettoken(), op.prio);
 	    res = {
 		res, right,
 		kind = "op",
@@ -90,63 +130,63 @@ function processexpression(source, token, prio) {
     return token, res;
 }
 
-function processstatement(source, token) {
-    return processexpression(source, token);
+function processstatement(token) {
+    return processexpression(token);
 }
 
-function processblock(source, token) {
+function processblock(token) {
     var code = { };
     var s;
     if (token == '{') {
-	token = gettoken(source);
+	token = gettoken();
 	while (token != '}') {
-	    token, s = processstatement(source, token);
+	    token, s = processstatement(token);
 	    table.insert(code, s);
-	    token = checksemicolon(source, token);
+	    token = checksemicolon(token);
 	}
-	token = gettoken(source);
+	token = gettoken();
     } else {
-	token, s = processstatement(source, token);
+	token, s = processstatement(token);
 	table.insert(code, s);
-	token = checksemicolon(source, token);
+	token = checksemicolon(token);
     }
 
     return token, code;
 }
 
-function processfunc(source, funcname, rettype) {
+function processfunc(funcname, rettype) {
     var params = { };
-    var token = gettoken(source);
+    var token = gettoken();
     while (token != ')') {
 	var type;
-	token, type = gettype(source, token);
+	token, type = processtype(token);
 
 	if (!type) {
-	    emiterror("type expected", source);
+	    emiterror("type expected");
 	    return token;
 	}
 
 	if (source.tokentype != "word") {
-	    emiterror("identifier expected", source);
+	    emiterror("identifier expected");
 	    return token;
 	}
 	table.insert(params, {
 	    name = token,
 	    type = type,
 	});
-	token = gettoken(source);
+	token = gettoken();
 	if (token != ',' && token != ')') {
-	    emiterror("',' or ')' expected", source);
+	    emiterror("',' or ')' expected");
 	    return token;
 	}
 	if (token == ')')
 	    break;
-	token = gettoken(source);
+	token = gettoken();
     }
     
-    token = gettoken(source);
+    token = gettoken();
     if (token != '{') {
-	emiterror("'{' expected", source);
+	emiterror("'{' expected");
 	return token;
     }
 
@@ -155,54 +195,54 @@ function processfunc(source, funcname, rettype) {
 	rettype = rettype,
 	params = params,
     }
-    vars[funcname] = func;
+    setvar(funcname, func);
 
     var code;
-    token, code = processblock(source, token);
+    token, code = processblock(token);
 
     func.code = code;
 
     return token;
 }
 
-function processdecl(source, token) {
+function processdecl(token) {
     var type;
-    token, type = gettype(source, token);
+    token, type = processtype(token);
 
     if (!type) {
-	emiterror("type expected", source);
+	emiterror("type expected");
 	return token;
     }
 
     if (source.tokentype != "word") {
-	emiterror("identifier expected", source);
+	emiterror("identifier expected");
 	return token;
     }
     var name = token;
-    token = gettoken(source);
+    token = gettoken();
 
     if (token == '(') { // function declaration
-	token = processfunc(source, name, type);
+	token = processfunc(name, type);
     } else { // this is a variable
 	var v = {
 	    name = name,
 	    type = type,
 	};
-	vars[name] = v;
+	setvar(name, v);
 	while (token == ',') {
-	    name = gettoken(source);
-	    if (source.tokentype != "word") {
-		emiterror("identifier expected", source);
+	    name = gettoken();
+	    if (tokentype != "word") {
+		emiterror("identifier expected");
 		return token;
 	    }
 	    v = {
 		name = name,
 		type = type,
 	    };
-	    vars[name] = v;
-	    token = gettoken(source);
+	    setvar(name, v);
+	    token = gettoken();
 	}
-	token = checksemicolon(source, token);
+	token = checksemicolon(token);
     }
 
     return token;
@@ -241,7 +281,7 @@ function dump(v) {
 function processsource(source) {
     var token = gettoken(source);
     while (token)
-	token = processdecl(source, token);
+	token = processdecl(token);
 
     dump(vars);
 }
