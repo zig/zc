@@ -8,8 +8,7 @@ class test {
     int toto(int x, float y)
     {
 	lolo b;
-	(a + x / y + a) * x + b.titi;
 
-	return 3;
+	return (a + x / y + a) * x + b.titi;
     }
 }

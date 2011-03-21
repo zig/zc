@@ -61,13 +61,10 @@ function processtype(token) {
     if (source.tokentype != "word")
 	return token;
     var name = token;
-    var t = gettype(name);
-    if (!t) {
-	t = {
-	    name = name,
-	    incomplete = true
-	};
-    }
+    t = {
+	kind = "typeref",
+	target = name,
+    };
     token = gettoken();
     return token, t;
 }
@@ -199,9 +196,6 @@ function processfunc(funcname, rettype) {
 	    return token;
 	}
 
-	if (!gettype(type.name))
-	    settype(type.name, type);
-
 	if (source.tokentype != "word") {
 	    emiterror("identifier expected");
 	    return token;
@@ -291,8 +285,6 @@ function processdecl(token) {
 	token, s = processexpression(token);
 	return checksemicolon(token), s;
     }
-    if (!gettype(type.name))
-	settype(type.name, type);
 
     var name = token;
     token = gettoken();
