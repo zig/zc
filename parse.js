@@ -8,6 +8,21 @@ namespace = {
     types = types,
 };
 
+namespaces = { }
+
+function pushnamespace(ns) {
+    table.insert(namespaces, namespace);
+    namespace = ns;
+    types = ns.types;
+    vars = ns.vars;
+}
+
+function popnamespace() {
+    namespace = table.remove(namespaces);
+    types = namespace.types;
+    vars = namespace.vars;
+}
+
 function settype(name, type) {
     if (types[name])
 	emiterror("shadowing existing type");
@@ -31,7 +46,7 @@ function setvar(name, v) {
     vars[name] = v;
 }
 
-function getvar(name) {
+function getvar(name, ns) {
     ns = ns or namespace;
     var res = ns.vars[name];
     if (res)
@@ -43,6 +58,8 @@ function getvar(name) {
 }
 
 function processtype(token) {
+    if (source.tokentype != "word")
+	return token;
     var name = token;
     var t = gettype(name);
     if (!t) {
@@ -50,7 +67,6 @@ function processtype(token) {
 	    name = name,
 	    incomplete = true
 	};
-	settype(name, t);
     }
     token = gettoken();
     return token, t;
@@ -73,6 +89,12 @@ function processterm(token) {
 	    emiterror("')' expected");
 	else
 	    token = gettoken();
+    } else if (source.tokentype == "number") {
+	res = {
+	    kind = "constant",
+	    target = token,
+	};
+	token = gettoken();
     } else if (source.tokentype == "word") {
 	res = {
 	    kind = "varref",
@@ -104,6 +126,10 @@ operators = {
 	name = '*',
 	prio = 2,
     },
+    ['.'] = {
+	name = '.',
+	prio = 10,
+    },
 };
 
 function processexpression(token, prio) {
@@ -131,7 +157,16 @@ function processexpression(token, prio) {
 }
 
 function processstatement(token) {
-    return processexpression(token);
+    if (token == '{')
+	return processblock(token);
+    if (token == "return") {
+	var r = {
+	    kind = "return",
+	};
+	token, r.value = processexpression(gettoken());
+	return token, r;
+    }
+    return processdecl(token);
 }
 
 function processblock(token) {
@@ -142,13 +177,11 @@ function processblock(token) {
 	while (token != '}') {
 	    token, s = processstatement(token);
 	    table.insert(code, s);
-	    token = checksemicolon(token);
 	}
 	token = gettoken();
     } else {
 	token, s = processstatement(token);
 	table.insert(code, s);
-	token = checksemicolon(token);
     }
 
     return token, code;
@@ -165,6 +198,9 @@ function processfunc(funcname, rettype) {
 	    emiterror("type expected");
 	    return token;
 	}
+
+	if (!gettype(type.name))
+	    settype(type.name, type);
 
 	if (source.tokentype != "word") {
 	    emiterror("identifier expected");
@@ -192,32 +228,72 @@ function processfunc(funcname, rettype) {
 
     func = {
 	name = funcname,
+	kind = "function",
+	parent = namespace,
 	rettype = rettype,
 	params = params,
+	types = {},
+	vars = {},
     }
     setvar(funcname, func);
+
+    pushnamespace(func);
 
     var code;
     token, code = processblock(token);
 
     func.code = code;
 
+    popnamespace();
+
     return token;
 }
 
+function processclassdecl() {
+    var name = gettoken();
+    var token = gettoken();
+
+    if (token != "{") {
+	emiterror("'}' expected");
+	return token;
+    }
+
+    var c = {
+	kind = "class",
+	name = name,
+	vars = {},
+	types = {},
+	parent = namespace,
+    };
+    settype(name, c);
+    pushnamespace(c);
+
+    token = gettoken();
+    while (token && token != '}')
+	token = processdecl(token);
+
+    popnamespace();
+
+    return gettoken();
+}
+
 function processdecl(token) {
+
+    var pos = savepos(source);
+    if (token == "class")
+	return processclassdecl(token);
+
     var type;
     token, type = processtype(token);
 
-    if (!type) {
-	emiterror("type expected");
-	return token;
+    if (!type || source.tokentype != "word") {
+	token = gotopos(source, pos);
+	token, s = processexpression(token);
+	return checksemicolon(token), s;
     }
+    if (!gettype(type.name))
+	settype(type.name, type);
 
-    if (source.tokentype != "word") {
-	emiterror("identifier expected");
-	return token;
-    }
     var name = token;
     token = gettoken();
 
@@ -226,6 +302,7 @@ function processdecl(token) {
     } else { // this is a variable
 	var v = {
 	    name = name,
+	    kind = "variable",
 	    type = type,
 	};
 	setvar(name, v);
@@ -237,6 +314,7 @@ function processdecl(token) {
 	    }
 	    v = {
 		name = name,
+		kind = "variable",
 		type = type,
 	    };
 	    setvar(name, v);
@@ -280,10 +358,12 @@ function dump(v) {
 
 function processsource(source) {
     var token = gettoken(source);
-    while (token)
+    while (token) {
 	token = processdecl(token);
+    }
 
     dump(vars);
+    dump(types);
 }
 
 
