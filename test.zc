@@ -1,0 +1,15 @@
+class lolo {
+    int titi;
+}
+
+class test {
+    int a;
+
+    int toto(int x, float y)
+    {
+	lolo b;
+	(a + x / y + a) * x + b.titi;
+
+	return 3;
+    }
+}
