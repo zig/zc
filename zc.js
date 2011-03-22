@@ -1,8 +1,8 @@
 #! /usr/local/bin/lua-5.1
 /*
- * jslua - transform javascript like syntax into lua
+ * zc - Ziggy's new C language
  *
- * @author : Vincent Penne (ziggy at zlash dot com)
+ * @author : Vincent Penné (ziggy at zlash dot com)
  *
  */
 
@@ -33,8 +33,8 @@ function exit_namespace() {
 }
 
 
-// enter in jslua namespace
-enter_namespace("jslua");
+// enter in zc namespace
+enter_namespace("zc");
 
 
 // all single symbol tokens in js
@@ -99,7 +99,7 @@ function emiterror(msg, psource) {
 
 
 // collapse an array of strings into one string, lua-efficiently (lua sucks at string concatenations)
-function colapse(t) {
+function collapse(t) {
 	var i, n;
 	while (t[2]) {
 		n = #t;
@@ -353,6 +353,7 @@ function include(name) {
 }
 
 include("parse");
+include("codegen");
 
 // modules
 function loadmodule(name, ns) {
@@ -384,7 +385,7 @@ function loadmodule(name, ns) {
 }
 
 
-function jslua(f) {
+function zc(f) {
 
 	has_error = nil;
 	num_error = 0;
@@ -410,11 +411,11 @@ function jslua(f) {
 	} else
 		message(format("no error while compiling"));
 
-	return colapse(resultString);
+	return collapse(resultString);
 }
 
 function dofile(file) {
-	var source = jslua(file);
+	var source = zc(file);
 	var module, error = loadstring(source);
 	source = nil; // allow source to be garbage collected
 	if (module) {
@@ -480,7 +481,7 @@ function option_list(opt) {
 }
 
 function option_help() {
-	print("usage : jslua [options] [filenames]");
+	print("usage : zc [options] [filenames]");
 	option_list(options);
 	os.exit();
 }
@@ -548,7 +549,7 @@ function option_getarg() {
 	return arg;
 }
 
-// exit jslua namespace
+// exit zc namespace
 exit_namespace();
 
 
@@ -566,31 +567,31 @@ if (standalone) {
 		}
 		if (j) {
 			name = string.sub(name, 0, j);
-			jslua.message(format("Adding path '%s'", name));
-			jslua.add_path(name);
+			zc.message(format("Adding path '%s'", name));
+			zc.add_path(name);
 		}
 	}
 
 	// store command line options
-	jslua.option_args = arg;
-	jslua.option_argind = 1;
+	zc.option_args = arg;
+	zc.option_argind = 1;
 
 	// parse options
 	var filename = { };
-	while (jslua.option_argind <= #jslua.option_args) {
-		var arg = jslua.option_getarg();
+	while (zc.option_argind <= #zc.option_args) {
+		var arg = zc.option_getarg();
 
 		if (string.sub(arg, 1, 1) == "-") {
-			var opt = jslua.options[arg];
+			var opt = zc.options[arg];
 			if (opt) {
 				if (opt.call)
 					opt.call();
 	
 				if (opt.postcall)
-					jslua.add_postprocess(opt.postcall);
+					zc.add_postprocess(opt.postcall);
 			} else {
-				jslua.emiterror(format("Unknown option '%s'\n", arg));
-				jslua.option_help();
+				zc.emiterror(format("Unknown option '%s'\n", arg));
+				zc.option_help();
 			}
 		} else
 			table.insert(filename, arg);
@@ -598,9 +599,9 @@ if (standalone) {
 
 	var function doit(filename) {
 		if (compileonly)
-			outhandle:write(jslua.jslua(filename));
+			outhandle:write(zc.zc(filename));
 		else
-			jslua.dofile(filename);
+			zc.dofile(filename);
 	}
 	if (!next(filename))
 		doit();
@@ -608,9 +609,9 @@ if (standalone) {
 		for (_, v in pairs(filename))
 			doit(v);
 
-	jslua.do_postprocess();
+	zc.do_postprocess();
 
-	if (jslua.has_error)
+	if (zc.has_error)
 		os.exit(-1);
   
 	//os.exit()
