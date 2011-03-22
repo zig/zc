@@ -390,8 +390,6 @@ function zc(f) {
 	has_error = nil;
 	num_error = 0;
   
-	resultString = { };
-
 	var filename = f || "stdin";
 	message ("Reading from "..filename);
 	var source = opensource(f, filename);
@@ -411,7 +409,7 @@ function zc(f) {
 	} else
 		message(format("no error while compiling"));
 
-	return collapse(resultString);
+	codegen();
 }
 
 function dofile(file) {
@@ -440,27 +438,48 @@ function add_postprocess(f) {
 }
 
 
-
-
 // output
-outcurindent = "";
-outindentstring = "   ";
-outindentlevel = 0;
+outputs = { };
+function newoutput(name, filename) {
+    o = {
+	filename = filename,
+	curindent = "",
+	outindentstring = "   ",
+	outindentlevel = 0,
+    };
+    outputs[name] = o;
+}
+
+function setoutput(name) {
+    output = outputs[name];
+}
+
+function writeoutputs() {
+    var k, o;
+    for (k, o in pairs(outputs)) {
+	var f = io.open(o.filename, "w");
+	f.write(collapse(o));
+    }
+}
+
+newoutput("header", "a.h");
+newoutput("source", "a.c");
+setoutput("source");
 
 function out(s) {
-	table.insert(resultString, s);
+    table.insert(output, s);
 }
 function outf(...) {
-	var s = format(...);
-	out(s);
+    var s = format(...);
+    out(s);
 }
 
 function get_outcurindent() {
-	return outcurindent;
+    return output.curindent;
 }
 
 function outi() {
-	out(outcurindent);
+	out(output.curindent);
 }
 
 var line = 1;
@@ -470,8 +489,8 @@ function outnl() {
 }
 
 function outindent(l) {
-	outindentlevel += l;
-	outcurindent = string.rep(outindentstring, outindentlevel);
+	output.indentlevel += l;
+	outpit.curindent = string.rep(output.indentstring, output.indentlevel);
 }
 
 // help
@@ -493,28 +512,7 @@ function option_module() {
 	loadmodule(name);
 }
 
-var outhandle = io.stdout;
-var compileonly;
-
-function option_output() {
-	compileonly = 1;
-	var fn = option_getarg();
-	outhandle = io.open(fn, "w");
-	if (!outhandle)
-		emiterror("Failed to open '"..fn.."' for writing.");
-	else
-		message("Opened '"..fn.."' for writing ...");
-}
-
 options = {
-	["-o"] = {
-		call = option_output,
-		help = "compile only, and output lua source code to specified file"
-	},
-	["-c"] = {
-		call = function() { compileonly = 1; },
-		help = "compile only, and output lua source code on stdout"
-	},
 	["-v"] = {
 		call = function() { verbose = 1; },
 		help = "turn verbose mode on"
@@ -598,10 +596,7 @@ if (standalone) {
 	}
 
 	var function doit(filename) {
-		if (compileonly)
-			outhandle:write(zc.zc(filename));
-		else
-			zc.dofile(filename);
+	    zc.zc(filename);
 	}
 	if (!next(filename))
 		doit();
