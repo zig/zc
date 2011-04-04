@@ -1,15 +1,4 @@
 
-types = { };
-vars = { };
-
-namespace = {
-    kind = "namespace",
-    vars = vars,
-    types = types,
-};
-
-namespaces = { }
-
 function pushnamespace(ns) {
     table.insert(namespaces, namespace);
     namespace = ns;
@@ -22,41 +11,6 @@ function popnamespace() {
     types = namespace.types;
     vars = namespace.vars;
 }
-
-function settype(name, type) {
-    if (types[name])
-	emiterror("shadowing existing type");
-    types[name] = type;
-}
-
-function gettype(name, ns) {
-    ns = ns or namespace;
-    var res = ns.types[name];
-    if (res)
-	return res;
-    else if (ns.parent)
-	return gettype(name, ns.parent);
-    else
-	return nil;
-}
-
-function setvar(name, v) {
-    if (vars[name])
-	emiterror("shadowing existing variable");
-    vars[name] = v;
-}
-
-function getvar(name, ns) {
-    ns = ns or namespace;
-    var res = ns.vars[name];
-    if (res)
-	return res;
-    else if (ns.parent)
-	return getvar(name, ns.parent);
-    else
-	return nil;
-}
-
 function processtype(token) {
     if (source.tokentype != "word")
 	return token;
@@ -253,13 +207,13 @@ function processclassdecl() {
     }
 
     var c = {
-	kind = "class",
 	name = name,
 	vars = {},
 	types = {},
 	parent = namespace,
     };
-    settype(name, c);
+    setkind(c, class_kind);
+    settype(c);
     pushnamespace(c);
 
     token = gettoken();

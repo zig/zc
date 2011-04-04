@@ -352,6 +352,7 @@ function include(name) {
     }
 }
 
+include("types");
 include("parse");
 include("codegen");
 
@@ -410,6 +411,8 @@ function zc(f) {
 		message(format("no error while compiling"));
 
 	codegen();
+
+	writeoutputs();
 }
 
 function dofile(file) {
@@ -458,7 +461,7 @@ function writeoutputs() {
     var k, o;
     for (k, o in pairs(outputs)) {
 	var f = io.open(o.filename, "w");
-	f.write(collapse(o));
+	f:write(collapse(o));
     }
 }
 
