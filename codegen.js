@@ -1,33 +1,65 @@
 
-namespace_kind.decl0_write_pre = function(ns) {
-    
+class_kind.decl0_write = function(ns) {
+    setoutput("header");
+    outfi("typedef struct %s %s;\n", ns.name, ns.name);
 }
 
-namespace_kind.write_inner = function(ns, stage) {
+class_kind.decl1_write_pre = function(ns) {
+    setoutput("header");
+    outfi("struct %s {\n", ns.name);
+    outindent(1);
+}
+
+class_kind.decl1_write_post = function(ns) {
+    setoutput("header");
+    outindent(-1);
+    outfi("}\n");
+}
+
+ctype_kind.vardecl_write = function(t, v) {
+    outfi("%s %s;\n", t.target, v.name);
+}
+
+var_kind.init0 = function(v) {
+    // resolve the type
+    assert(v.type.kind == "typeref");
+    var t = gettype(v.type.target, v.namespace);
+    v.type = t;
+}
+
+var_kind.decl1_write = function(v) {
+    setoutput("header");
+    var t = v.type;
+    t.vardecl_write(t, v);
+}
+
+namespace_kind.inner = function(ns, stage) {
     for (i, k in pairs(ns.types))
 	writestage(k, stage);
-    for (i, k in pairs(ns.vars))
+    for (i, k in pairs(ns.members))
 	writestage(k, stage);
 }
 
-class_kind.write_inner = namespace_kind.write_inner;
+class_kind.inner = namespace_kind.inner;
 
 
 function writestage(ns, stage) {
-    if (ns[stage.."_write_pre"])
-	ns[stage.."_write_pre"](ns, stage);
-    if (ns["write_inner"])
-	ns["write_inner"](ns, stage);
-    if (ns[stage.."_write_post"])
-	ns[stage.."_write_post"](ns, stage);
+    if (ns[stage.."_pre"])
+	ns[stage.."_pre"](ns, stage);
+    if (ns[stage])
+	ns[stage](ns, stage);
+    if (ns["inner"])
+	ns["inner"](ns, stage);
+    if (ns[stage.."_post"])
+	ns[stage.."_post"](ns, stage);
 }
 
 function codegen() {
 
-    for (_, stage in ipairs { "decl0", "decl1", "code0", "code1" }) {
+    for (_, stage in ipairs { "init0", "decl0_write", "decl1_write", "code0_write", "code1_write" }) {
 	writestage(namespace, stage);
     }
 
 }
 
-dummy = nil;
+;

@@ -3,13 +3,13 @@ function pushnamespace(ns) {
     table.insert(namespaces, namespace);
     namespace = ns;
     types = ns.types;
-    vars = ns.vars;
+    members = ns.members;
 }
 
 function popnamespace() {
     namespace = table.remove(namespaces);
     types = namespace.types;
-    vars = namespace.vars;
+    members = namespace.members;
 }
 function processtype(token) {
     if (source.tokentype != "word")
@@ -42,13 +42,19 @@ function processterm(token) {
 	    token = gettoken();
     } else if (source.tokentype == "number") {
 	res = {
-	    kind = "constant",
+	    kind = "number",
+	    target = token,
+	};
+	token = gettoken();
+    } else if (source.tokentype == "string") {
+	res = {
+	    kind = "string",
 	    target = token,
 	};
 	token = gettoken();
     } else if (source.tokentype == "word") {
 	res = {
-	    kind = "varref",
+	    kind = "memberref",
 	    target = token,
 	};
 	token = gettoken();
@@ -181,9 +187,9 @@ function processfunc(funcname, rettype) {
 	rettype = rettype,
 	params = params,
 	types = {},
-	vars = {},
+	members = {},
     }
-    setvar(funcname, func);
+    setmember(funcname, func);
 
     pushnamespace(func);
 
@@ -208,7 +214,7 @@ function processclassdecl() {
 
     var c = {
 	name = name,
-	vars = {},
+	members = {},
 	types = {},
 	parent = namespace,
     };
@@ -247,10 +253,10 @@ function processdecl(token) {
     } else { // this is a variable
 	var v = {
 	    name = name,
-	    kind = "variable",
 	    type = type,
 	};
-	setvar(name, v);
+	setkind(v, var_kind);
+	setmember(name, v);
 	while (token == ',') {
 	    name = gettoken();
 	    if (tokentype != "word") {
@@ -259,10 +265,10 @@ function processdecl(token) {
 	    }
 	    v = {
 		name = name,
-		kind = "variable",
 		type = type,
 	    };
-	    setvar(name, v);
+	    setkind(v, var_kind);
+	    setmember(name, v);
 	    token = gettoken();
 	}
 	token = checksemicolon(token);
@@ -307,10 +313,10 @@ function processsource(source) {
 	token = processdecl(token);
     }
 
-    dump(vars);
+    dump(members);
     dump(types);
 }
 
 
 // workaround bug in jslua !!
-_ = nil;
+;

@@ -447,8 +447,8 @@ function newoutput(name, filename) {
     o = {
 	filename = filename,
 	curindent = "",
-	outindentstring = "   ",
-	outindentlevel = 0,
+	indentstring = "   ",
+	indentlevel = 0,
     };
     outputs[name] = o;
 }
@@ -485,6 +485,11 @@ function outi() {
 	out(output.curindent);
 }
 
+function outfi(...) {
+    outi();
+    outf(...);
+}
+
 var line = 1;
 function outnl() {
 	line++;
@@ -493,7 +498,7 @@ function outnl() {
 
 function outindent(l) {
 	output.indentlevel += l;
-	outpit.curindent = string.rep(output.indentstring, output.indentlevel);
+	output.curindent = string.rep(output.indentstring, output.indentlevel);
 }
 
 // help

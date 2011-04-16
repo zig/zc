@@ -16,6 +16,7 @@ function settype(type, kind) {
     var name = type.name;
     if (types[name])
 	emiterror("shadowing existing type");
+    type.owner = namespace;
     types[name] = type;
     setkind(type, kind);
 }
@@ -31,15 +32,16 @@ function gettype(name, ns) {
 	return nil;
 }
 
-function setvar(name, v) {
-    if (vars[name])
+function setmember(name, v) {
+    if (members[name])
 	emiterror("shadowing existing variable");
-    vars[name] = v;
+    v.owner = namespace;
+    members[name] = v;
 }
 
-function getvar(name, ns) {
+function getmember(name, ns) {
     ns = ns or namespace;
-    var res = ns.vars[name];
+    var res = ns.members[name];
     if (res)
 	return res;
     else if (ns.parent)
@@ -60,12 +62,16 @@ class_kind= {
     kind = "class",
 };
 
+var_kind = {
+    kind = "var",
+};
+
 
 types = { };
-vars = { };
+members = { };
 
 namespace = {
-    vars = vars,
+    members = members,
     types = types,
 };
 setkind(namespace, namespace_kind);
