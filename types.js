@@ -12,11 +12,12 @@ function setobj(obj, meta) {
 }
 setkind = setobj;
 
-function settype(type) {
+function settype(type, kind) {
     var name = type.name;
     if (types[name])
 	emiterror("shadowing existing type");
     types[name] = type;
+    setkind(type, kind);
 }
 
 function gettype(name, ns) {
@@ -59,6 +60,7 @@ class_kind= {
     kind = "class",
 };
 
+
 types = { };
 vars = { };
 
@@ -66,7 +68,7 @@ namespace = {
     vars = vars,
     types = types,
 };
-setobj(namespace, namespace_kind);
+setkind(namespace, namespace_kind);
 
 namespaces = { }
 
@@ -75,8 +77,7 @@ function defctype(name) {
 	name = name,
 	target = name,
     };
-    settype(t);
-    setkind(t, ctype_kind);
+    settype(t, ctype_kind);
 }
 
 defctype("int");

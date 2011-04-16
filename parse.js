@@ -212,8 +212,7 @@ function processclassdecl() {
 	types = {},
 	parent = namespace,
     };
-    setkind(c, class_kind);
-    settype(c);
+    settype(c, class_kind);
     pushnamespace(c);
 
     token = gettoken();
