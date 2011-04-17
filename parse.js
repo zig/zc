@@ -146,6 +146,20 @@ function processblock(token) {
 
 function processfunc(funcname, rettype) {
     var params = { };
+
+    func = {
+	name = funcname,
+	parent = namespace,
+	rettype = rettype,
+	params = params,
+	types = {},
+	members = {},
+    }
+    setkind(func, func_kind);
+    setmember(func);
+
+    pushnamespace(func);
+
     var token = gettoken();
     while (token != ')') {
 	var type;
@@ -160,10 +174,14 @@ function processfunc(funcname, rettype) {
 	    emiterror("identifier expected");
 	    return token;
 	}
-	table.insert(params, {
+	var param = {
 	    name = token,
 	    type = type,
-	});
+	    param_index = #params + 1,
+	}
+	setkind(param, var_kind);
+	setmember(param);
+	table.insert(params, param);
 	token = gettoken();
 	if (token != ',' && token != ')') {
 	    emiterror("',' or ')' expected");
@@ -176,22 +194,10 @@ function processfunc(funcname, rettype) {
     
     token = gettoken();
     if (token != '{') {
+	popnamespace();
 	emiterror("'{' expected");
 	return token;
     }
-
-    func = {
-	name = funcname,
-	kind = "function",
-	parent = namespace,
-	rettype = rettype,
-	params = params,
-	types = {},
-	members = {},
-    }
-    setmember(funcname, func);
-
-    pushnamespace(func);
 
     var code;
     token, code = processblock(token);
@@ -256,7 +262,7 @@ function processdecl(token) {
 	    type = type,
 	};
 	setkind(v, var_kind);
-	setmember(name, v);
+	setmember(v);
 	while (token == ',') {
 	    name = gettoken();
 	    if (tokentype != "word") {
@@ -268,7 +274,7 @@ function processdecl(token) {
 		type = type,
 	    };
 	    setkind(v, var_kind);
-	    setmember(name, v);
+	    setmember(v);
 	    token = gettoken();
 	}
 	token = checksemicolon(token);
@@ -298,6 +304,8 @@ function dump(v) {
 	    res = "{\n"..indent;
 	    for (k, a in pairs(v))
 		res = res..string.format("  %s : %s\n"..indent, k, _dump(a, indent.."  "));
+	    for (k, a in pairs(getmetatable(v) or {}))
+		res = res..string.format("  %s : %s\n"..indent, k, _dump(a, indent.."  "));
 	    res = res.."}";
 	} else
 	    res = tostring(v);
@@ -313,8 +321,7 @@ function processsource(source) {
 	token = processdecl(token);
     }
 
-    dump(members);
-    dump(types);
+    dump(namespace);
 }
 
 

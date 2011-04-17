@@ -1,8 +1,8 @@
-class lolo {
-    int titi;
-}
-
 class test {
+    class lolo {
+	int titi;
+    }
+    
     int a;
 
     int toto(int x, float y)

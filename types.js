@@ -32,7 +32,8 @@ function gettype(name, ns) {
 	return nil;
 }
 
-function setmember(name, v) {
+function setmember(v) {
+    var name = v.name;
     if (members[name])
 	emiterror("shadowing existing variable");
     v.owner = namespace;
@@ -66,6 +67,10 @@ var_kind = {
     kind = "var",
 };
 
+func_kind = {
+    kind = "func",
+};
+
 
 types = { };
 members = { };
@@ -88,3 +93,4 @@ function defctype(name) {
 
 defctype("int");
 defctype("float");
+defctype("void");
