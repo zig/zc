@@ -42,26 +42,27 @@ function processterm(token) {
 	    token = gettoken();
     } else if (source.tokentype == "number") {
 	res = {
-	    kind = "number",
 	    target = token,
 	};
+	setkind(res, number_kind);
 	token = gettoken();
     } else if (source.tokentype == "string") {
 	res = {
-	    kind = "string",
 	    target = token,
 	};
+	setkind(res, string_kind);
 	token = gettoken();
     } else if (source.tokentype == "word") {
 	res = {
-	    kind = "memberref",
 	    target = token,
 	};
+	setkind(res, memberref_kind);
 	token = gettoken();
-    } else
+    } else {
 	res = {
-	    kind = "nil";
 	};
+	setkind(res, nil_kind);
+    }
 
     return token, res;
 }
@@ -103,9 +104,9 @@ function processexpression(token, prio) {
 	    token, right = processexpression(gettoken(), op.prio);
 	    res = {
 		res, right,
-		kind = "op",
 		op = op,
 	    };
+	    setkind(res, op_kind);
 	} else
 	    break;
     }
@@ -118,9 +119,9 @@ function processstatement(token) {
 	return processblock(token);
     if (token == "return") {
 	var r = {
-	    kind = "return",
 	};
-	token, r.value = processexpression(gettoken());
+	setkind(r, return_kind);
+	token, r[1] = processexpression(gettoken());
 	return token, r;
     }
     return processdecl(token);
@@ -248,7 +249,9 @@ function processdecl(token) {
     if (!type || source.tokentype != "word") {
 	token = gotopos(source, pos);
 	token, s = processexpression(token);
-	return checksemicolon(token), s;
+	var expr = { s };
+	setkind(expr, expr_kind);
+	return checksemicolon(token), expr;
     }
 
     var name = token;

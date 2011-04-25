@@ -1,4 +1,6 @@
 
+thiz = "__thiz__";
+
 function resolve_type(v) {
     // resolve a type
     if (v.type && v.type.kind == "typeref")
@@ -19,6 +21,11 @@ function cnsprefix(ns) {
 
 function cfuncname(f) {
     return cnsprefix(f.owner)..f.name;
+}
+
+function handle(obj, stage, newstage) {
+    if (obj[stage])
+	return obj[stage](obj, newstage || stage);
 }
 
 class_kind.decl0_write = function(ns) {
@@ -68,11 +75,11 @@ class_kind.vardecl_write = function(t, v) {
 }
 
 class_kind.paramdecl_write = function(t, v) {
-    outfi("%s *%s", t.target, v.name);
+    outfi("%s *%s", cnsname(t), v.name);
 }
 
 class_kind.funcret_write = function(t, f, name) {
-    outfi("%s *%s", t.target, name);
+    outfi("%s *%s", cnsname(t), name);
 }
 
 var_kind.init0 = resolve_type;
@@ -84,10 +91,27 @@ var_kind.decl1_write = function(v) {
 	t.vardecl_write(t, v);
 }
 
+function handle_code(code, stage) {
+    for (i, s in ipairs(code))
+	if (s[stage])
+	    s[stage](s, stage);
+}
+
 func_kind.init0 = function(f, stage) {
+    if (f.owner.kind == 'class') {
+	var param = {
+	    name = thiz,
+	    type = f.owner,
+	    param_index = 1,
+	}
+	setkind(param, var_kind);
+	setmember(param, f);
+	table.insert(f.params, 1, param);
+    }
     for (i, k in pairs(f.members))
 	resolve_type(k);
     f.rettype = gettype(f.rettype.target, f.owner);
+    handle_code(f.code, stage);
 }
 
 function funcdecl(f) {
@@ -104,36 +128,59 @@ function funcdecl(f) {
     outindent(-1);
 }
 
-func_kind.decl2_write = function(f) {
+func_kind.decl2_write = function(f, stage) {
     setoutput("header");
     funcdecl(f);
     out(";\n");
+    handle_code(f.code, stage);
 }
 
-func_kind.code0_write = function(f) {
+func_kind.code0_write = function(f, stage) {
     setoutput("source");
     funcdecl(f);
-    out("\n");
-    outfi("{\n");
+    out("\n\t{\n");
     outindent(1);
+    handle_code(f.code, stage);
     outindent(-1);
     outfi("}\n");
 }
 
 
+op_kind.right_code0_write = function(o, stage) {
+    out("( ");
+    handle(o[1], "right_"..stage, stage);
+    out(" ".. o.op.name .." ");
+    handle(o[2], "right_"..stage, stage);
+    out(" )");
+}
+
+memberref_kind.right_code0_write = function(o, stage) {
+    out(o.target);
+}
+
+return_kind.code0_write = function(o, stage) {
+    outfi("return ");
+    handle(o[1], "right_"..stage, stage);
+    out(";\n");
+}
+
+expr_kind.code0_write = function(o, stage) {
+    outi();
+    handle(o[1], "right_"..stage, stage);
+    out(";\n");
+}
+
+
 function writestage(ns, stage) {
-    if (ns["pre"])
-	ns["pre"](ns, stage);
-    if (ns[stage.."_pre"])
-	ns[stage.."_pre"](ns, stage);
-    if (ns[stage])
-	ns[stage](ns, stage);
-    if (ns["inner"])
-	ns["inner"](ns, stage);
-    if (ns[stage.."_post"])
-	ns[stage.."_post"](ns, stage);
-    if (ns["post"])
-	ns["post"](ns, stage);
+    for (i, s in ipairs({
+	"pre",
+	stage.."_pre",
+	stage,
+	"inner",
+	stage.."_post",
+	"post",
+    }))
+	handle(ns, s, stage);
 }
 
 function codegen() {

@@ -470,6 +470,7 @@ newoutput("source", "a.c");
 setoutput("source");
 
 function out(s) {
+    s = string.gsub(s, "\t", output.curindent);
     table.insert(output, s);
 }
 function outf(...) {

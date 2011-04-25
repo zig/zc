@@ -71,6 +71,34 @@ func_kind = {
     kind = "func",
 };
 
+return_kind = {
+    kind = "return",
+};
+
+expr_kind = {
+    kind = "expr",
+};
+
+op_kind = {
+    kind = "op",
+};
+
+number_kind = {
+    kind = "number",
+};
+
+string_kind = {
+    kind = "string",
+};
+
+memberref_kind = {
+    kind = "memberref",
+};
+
+nil_kind = {
+    kind = "nil",
+};
+
 
 types = { };
 members = { };
