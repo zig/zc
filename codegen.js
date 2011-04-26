@@ -198,7 +198,7 @@ func_kind.code0_write = function(f, stage) {
 }
 
 
-number_kind.right_code0_write = function(o, stage) {
+number_kind.code0_write = function(o, stage) {
     if (string.find(o.target, '[.]'))
 	o.type = gettype("float", globalns);
     else
@@ -206,32 +206,47 @@ number_kind.right_code0_write = function(o, stage) {
     return o.target;
 }
 
-call_kind.right_code0_write = function(o, stage) {
+call_kind.code0_write = function(o, stage) {
     var params = "";
     for (i, p in ipairs(o)) {
-	params = params..handle(p, "right_"..stage, stage);
+	params = params..handle(p, stage);
 	if (i < #o)
 	    params = params..", ";
     }
 
-    var thiz = handle(o.func, "right_"..stage, stage, nil, o);
+    var thiz = handle(o.func, stage, stage, nil, o);
     var f = o.func.member;
 
     o.type = o.func.type;
 
     if (f.is_method) {
 	if (#o > 0)
-	    thiz = thiz..", ";
+	    params = ", "..params;
 	params = thiz..params;
     }
     return cfuncname(o.func.member).."("..params..")";
 }
 
-dot_kind.right_code0_write = function(o, stage, owner, signature) {
+assign_kind.code0_write = function(o, stage) {
     var o1, o2;
 
-    o1 = handle(o[1], "right_"..stage, stage, owner);
-    o2 = handle(o[2], "right_"..stage, stage, o[1].type, signature);
+    o1 = handle(o[1], stage);
+    o2 = handle(o[2], stage);
+
+    if (!o[1].member)
+	emiterror("lvalue expected");
+    
+    o.type = o[2].type;
+    o.member = o[2].member;
+
+    return format("(%s = %s)", o1, o2);
+}
+
+dot_kind.code0_write = function(o, stage, owner, signature) {
+    var o1, o2;
+
+    o1 = handle(o[1], stage, stage, owner);
+    o2 = handle(o[2], stage, stage, o[1].type, signature);
 
     if (o[2].kind != "dot" && o[2].kind != "memberref")
 	emiterror("syntax error");
@@ -245,11 +260,12 @@ dot_kind.right_code0_write = function(o, stage, owner, signature) {
 	return string.format("%s -> %s ", o1, o2);
 }
 
-op_kind.right_code0_write = function(o, stage) {
-    var o1, o2 = handle(o[1], "right_"..stage, stage), handle(o[2], "right_"..stage, stage);
-    var m = getmember("operator_"..o.op.name..paramssuffix(o));
+op_kind.code0_write = function(o, stage) {
+    var o1, o2 = handle(o[1], stage), handle(o[2], stage);
+    var lookup = "__operator_"..o.op.name..paramssuffix(o);
+    var m = getmember(lookup);
     if (!m) {
-	emiterror("no corresponding operator "..o.op.name..paramssuffix(o));
+	emiterror("unknown method "..lookup);
 	return "";
     }
     o.type = m.rettype;
@@ -259,20 +275,27 @@ op_kind.right_code0_write = function(o, stage) {
 	return string.format("%s( %s, %s )", cfuncname(m), o1, o2);
 }
 
-memberref_kind.right_code0_write = function(o, stage, explicitowner, signature) { 
+memberref_kind.code0_write = function(o, stage, explicitowner, signature) { 
     var lookup = o.target..paramssuffix(signature);
     var res = "";
     var ns = explicitowner;
+    var v;
     if (!explicitowner) {
 	ns = o.owner;
-	while (!ns.members[lookup] && ns.owner) {
+	v = ns.members[lookup];
+	while (!v && ns.owner) {
 	    ns = ns.owner;
 	    if (res != "")
 		res = "->"..res;
 	    res = thiz..res;
+	    v = ns.members[lookup];
+	    if (!o.owner.is_method && v && (!v.mods || !v.mods.static)) {
+		emiterror("cannot access non static member "..o.target.." from static method");
+		break;
+	    }
 	}
     }
-    var v = ns.members[lookup];
+    v = ns.members[lookup];
     o.member = v;
     if (v) {
 	if (ns.kind == "namespace")
@@ -292,16 +315,16 @@ memberref_kind.right_code0_write = function(o, stage, explicitowner, signature) 
     return res;
 }
 
-nil_kind.right_code0_write = function(o) {
+nil_kind.code0_write = function(o) {
     return "";
 }
  
 return_kind.code0_write = function(o, stage) {
-    outfi("return %s;\n", handle(o[1], "right_"..stage, stage));
+    outfi("return %s;\n", handle(o[1], stage));
 }
 
 expr_kind.code0_write = function(o, stage) {
-    outfi("%s;\n", handle(o[1], "right_"..stage, stage));
+    outfi("%s;\n", handle(o[1], stage));
 }
 
 

@@ -128,6 +128,14 @@ call_kind = {
     kind = "call",
 };
 
+assign_kind = {
+    kind = "assign",
+};
+
+new_kind = {
+    kind = "new",
+};
+
 nil_kind = {
     kind = "nil",
 };
@@ -192,6 +200,12 @@ operators = {
 	cop = '(',
 	prio = 9,
     },
+    ['='] = {
+	name = "assign",
+	cop = '=',
+	prio = 20,
+	specialkind = assign_kind,
+    },
 };
 
 numbers = { 
@@ -209,7 +223,7 @@ for (t1, p1 in pairs(numbers)) {
 	//print(rt, t1, t2);
 	for (_, o in pairs(operators)) if (o.numeric) {
 	    var func = {
-		name = "operator_"..o.name,
+		name = "__operator_"..o.name,
 		parent = namespace,
 		rettype = typeref(rt),
 		params = {

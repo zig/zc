@@ -13,13 +13,27 @@ class test_t {
 	return this;
     }
 
-    static float operator_plus(float a, lolo_t l) {
+    static float __operator_plus(float a, lolo_t l) {
 	return a + l.titi;
     }
     
+    /*static*/ int with_closure() { // static is forbiden because the method access non static members
+	toto(32, 5.3);
+	return a;
+    }
+
     int toto(int x, float y)
     {
 	lolo_t b;
+
+	/*class pipo_t {
+	    int bambi;
+	    int with_closure() {
+		return x;
+	    }
+	    };
+
+	    pipo_t world;*/
 
 	b.titi;
 	this.lala.titi;
@@ -32,7 +46,10 @@ class test_t {
 
 
 int main() {
-    test_t test;
+    test_t test/* = new test_t()*/;
+
+    int a, b;
+    a = b = 42;
 
     return test.toto(10, 3.5);
 }

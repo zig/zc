@@ -201,7 +201,7 @@ function gettoken(psource) {
 
 	if (source.tokentype == "comment") {
 		if (!source.tokencomments[source.tokenpos - 1]) {
-			out(string.gsub("-- "..token, "\n", outcurindent.."\n--").."\n");
+			out(string.gsub("// "..token, "\n", output.curindent.."\n//").."\n");
 			source.tokencomments[source.tokenpos - 1] = 1;
 		}
 		return gettoken(source);

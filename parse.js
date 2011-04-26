@@ -108,6 +108,12 @@ function processstatement(token) {
 	setkind(r, return_kind);
 	token, r[1] = processexpression(gettoken());
 	return checksemicolon(token), r;
+    } else if (token == "new") {
+	var r = {
+	};
+	setkind(r, new_kind);
+	token, r.type = processtype(token);
+	return checksemicolon(token), r;
     }
     return processdecl(token);
 }
@@ -259,25 +265,21 @@ function processdecl(token) {
     if (token == '(') { // function declaration
 	token = processfunc(name, type, mods);
     } else { // this is a variable
-	var v = {
-	    name = name,
-	    type = type,
-	};
-	setkind(v, var_kind);
-	setmember(v);
-	while (token == ',') {
-	    name = gettoken();
-	    if (tokentype != "word") {
-		emiterror("identifier expected");
-		return token;
-	    }
-	    v = {
+	while (1) {
+	    var v = {
 		name = name,
 		type = type,
 		mods = mods,
 	    };
 	    setkind(v, var_kind);
 	    setmember(v);
+	    if (token != ',')
+		break;
+	    name = gettoken();
+	    if (source.tokentype != "word") {
+		emiterror("identifier expected");
+		return token;
+	    }
 	    token = gettoken();
 	}
 	token = checksemicolon(token);
