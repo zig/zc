@@ -54,10 +54,11 @@ function gettype(name, ns) {
 
 function setmember(v, ns) {
     var name = v.name;
-    if (members[name])
+    ns = ns or namespace;
+    if (ns.members[name])
 	emiterror("shadowing existing variable");
-    v.owner = ns or namespace;
-    members[name] = v;
+    v.owner = ns;
+    ns.members[name] = v;
 }
 
 function getmember(name, ns) {

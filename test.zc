@@ -1,11 +1,17 @@
 class test_t {
     class lolo_t {
 	int titi;
-	//int majoliemethode() { return 42; }
+	int majoliemethode() {
+	    return 42;
+	}
     }
     
     int a;
     lolo_t lala;
+
+    test_t jolie() {
+	return this;
+    }
 
     static float operator_plus(float a, lolo_t l) {
 	return a + l.titi;
@@ -17,7 +23,8 @@ class test_t {
 
 	b.titi;
 	this.lala.titi;
-	//lala.titi + this.lala.majoliemethode();
+	jolie().a;
+	lala.titi + this.lala.majoliemethode();
 	return (a + x / y + a) * x + b.titi + b;
     }
 }

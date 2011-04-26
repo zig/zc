@@ -103,7 +103,9 @@ class_kind.inner = namespace_kind.inner;
 ctype_kind.vardecl_write = function(t, v) {
     outfi("%s %s;\n", t.target, v.name);
 }
-ctype_kind.localdecl_write = ctype_kind.vardecl_write;
+ctype_kind.localdecl_write = function(t, v) {
+    outfi("%s %s = 0;\n", t.target, v.name);
+}
 
 ctype_kind.paramdecl_write = function(t, v) {
     outfi("%s %s", t.target, v.name);
@@ -116,7 +118,9 @@ ctype_kind.funcret_write = function(t, f, name) {
 class_kind.vardecl_write = function(t, v) {
     outfi("%s *%s;\n", cnsname(t), v.name);
 }
-class_kind.localdecl_write = class_kind.vardecl_write;
+class_kind.localdecl_write = function(t, v) {
+    outfi("%s *%s = NULL;\n", cnsname(t), v.name);
+}
 
 class_kind.paramdecl_write = function(t, v) {
     outfi("%s *%s", cnsname(t), v.name);
@@ -203,18 +207,24 @@ number_kind.right_code0_write = function(o, stage) {
 }
 
 call_kind.right_code0_write = function(o, stage) {
-    var res = "";
+    var params = "";
     for (i, p in ipairs(o)) {
-	res = res..handle(p, "right_"..stage, stage);
+	params = params..handle(p, "right_"..stage, stage);
 	if (i < #o)
-	    res = res..", ";
+	    params = params..", ";
     }
 
-    var f = handle(o.func, "right_"..stage, stage, nil, o);
+    var thiz = handle(o.func, "right_"..stage, stage, nil, o);
+    var f = o.func.member;
 
-    o.type = o.func.rettype;
+    o.type = o.func.type;
 
-    return f.."("..res..")";
+    if (f.is_method) {
+	if (#o > 0)
+	    thiz = thiz..", ";
+	params = thiz..params;
+    }
+    return cfuncname(o.func.member).."("..params..")";
 }
 
 dot_kind.right_code0_write = function(o, stage, owner, signature) {
@@ -223,9 +233,16 @@ dot_kind.right_code0_write = function(o, stage, owner, signature) {
     o1 = handle(o[1], "right_"..stage, stage, owner);
     o2 = handle(o[2], "right_"..stage, stage, o[1].type, signature);
 
-    o.type = o[2].type;
+    if (o[2].kind != "dot" && o[2].kind != "memberref")
+	emiterror("syntax error");
 
-    return string.format("%s -> %s ", o1, o2);
+    o.type = o[2].type;
+    o.member = o[2].member;
+
+    if (o.member.rettype)
+	return o1;
+    else
+	return string.format("%s -> %s ", o1, o2);
 }
 
 op_kind.right_code0_write = function(o, stage) {
@@ -242,24 +259,36 @@ op_kind.right_code0_write = function(o, stage) {
 	return string.format("%s( %s, %s )", cfuncname(m), o1, o2);
 }
 
-memberref_kind.right_code0_write = function(o, stage, ns, signature) {
-    var res = o.target;
+memberref_kind.right_code0_write = function(o, stage, explicitowner, signature) { 
     var lookup = o.target..paramssuffix(signature);
-    if (!ns) {
+    var res = "";
+    var ns = explicitowner;
+    if (!explicitowner) {
 	ns = o.owner;
 	while (!ns.members[lookup] && ns.owner) {
 	    ns = ns.owner;
-	    res = thiz.."->"..res;
+	    if (res != "")
+		res = "->"..res;
+	    res = thiz..res;
 	}
     }
-    if (ns.members[lookup])
-	o.type = ns.members[lookup].type;
-    else if (o.explicitowner)
+    var v = ns.members[lookup];
+    o.member = v;
+    if (v) {
+	if (ns.kind == "namespace")
+	    res = "";
+	if (v.rettype) {
+	    o.type = v.rettype;
+	} else {
+	    o.type = v.type;
+	    if (res != "")
+		res = res.."->";
+	    res = res..o.target;
+	}
+    } else if (explicitowner)
 	emiterror("unknown member "..o.target);
     else
 	emiterror("unknown identifier "..o.target);
-    if (ns.kind == "namespace")
-	res = o.target;
     return res;
 }
 
@@ -290,6 +319,8 @@ function writestage(ns, stage) {
 
 function codegen() {
 
+    setoutput("header");
+    out('#include <zc.h>\n\n');
     setoutput("code");
     out('#include "a.h"\n\n');
 
