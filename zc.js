@@ -73,7 +73,7 @@ function loadfile(name) {
 
 
 function _message(msg) {
-	io.stderr:write(msg.."\n");
+	io.stdout:write(msg.."\n");
 }
 
 function message(msg) {

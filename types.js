@@ -119,6 +119,10 @@ memberref_kind = {
     kind = "memberref",
 };
 
+call_kind = {
+    kind = "call",
+};
+
 nil_kind = {
     kind = "nil",
 };
@@ -151,26 +155,35 @@ operators = {
 	name = "plus",
 	cop = '+',
 	prio = 1,
+	numeric = 1,
     },
     ['-'] = {
 	name = "minus",
 	cop = '-',
 	prio = 1,
+	numeric = 1,
     },
     ['/'] = {
 	name = "divise",
 	cop = '/',
 	prio = 2,
+	numeric = 1,
     },
     ['*'] = {
 	name = "multiply",
 	cop = '*',
 	prio = 2,
+	numeric = 1,
     },
     ['.'] = {
 	name = "dot",
 	cop = '.',
 	prio = 10,
+    },
+    ['('] = {
+	name = "call",
+	cop = '(',
+	prio = 9,
     },
 };
 
@@ -186,8 +199,8 @@ for (t1, p1 in pairs(numbers)) {
     for (t2, p2 in pairs(numbers)) {
 	var rt;
 	if (p1 > p2) rt = t1; else rt = t2;
-	print(rt, t1, t2);
-	for (_, o in pairs(operators)) {
+	//print(rt, t1, t2);
+	for (_, o in pairs(operators)) if (o.numeric) {
 	    var func = {
 		name = "operator_"..o.name,
 		parent = namespace,

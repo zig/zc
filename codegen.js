@@ -1,5 +1,5 @@
 
-thiz = "__thiz__";
+thiz = "this";
 
 var tmpnum = 0;
 function newtmp() {
@@ -31,26 +31,27 @@ function cnsprefix(ns) {
     return cnsname(ns).."_";
 }
 
-function paramssuffix(params) {
+function paramssuffix(params, is_method) {
     var res = "";
-    for (i, p in ipairs(params)) {
-	res = res .. "__" .. cnsname(p.type);
+    for (i, p in ipairs(params or {})) {
+	if (!is_method || i > 1)
+	    res = res .. "__" .. cnsname(p.type);
     }
     return res;
 }
 
 function funcname(f) {
     var res = f.name;
-    return f.name .. paramssuffix(f.params);
+    return f.name .. paramssuffix(f.params, f.is_method);
 }
 
 function cfuncname(f) {
     return cnsprefix(f.owner)..funcname(f);
 }
 
-function handle(obj, stage, newstage) {
+function handle(obj, stage, newstage, ...) {
     if (obj[stage])
-	return obj[stage](obj, newstage || stage);
+	return obj[stage](obj, newstage || stage, ...);
 }
 
 function handle_code(code, stage) {
@@ -143,6 +144,7 @@ intrinsicfunc_kind.init0 = function(f, stage) {
 	    param_index = 1,
 	}
 	setkind(param, var_kind);
+	print(f.name);
 	setmember(param, f);
 	table.insert(f.params, 1, param);
     }
@@ -192,37 +194,44 @@ func_kind.code0_write = function(f, stage) {
 }
 
 
-dot_right_code0_write = function(o, stage, owner) {
-    //print(o.kind, o.target or o.op.cop, owner);
-    if (o.kind == "memberref") {
-	if (owner) {
-	    var v = owner.members && owner.members[o.target];
-	    if (!v) {
-		emiterror("unknown member "..o.target);
-		return "?";
-	    }
-	    o.type = v.type;
-	    return o.target;
-	} else
-	    return handle(o, stage);
+number_kind.right_code0_write = function(o, stage) {
+    if (string.find(o.target, '[.]'))
+	o.type = gettype("float");
+    else
+	o.type = gettype("int");
+    return o.target;
+}
+
+call_kind.right_code0_write = function(o, stage) {
+    var res = "";
+    for (i, p in ipairs(o)) {
+	res = res..handle(p, "right_"..stage, stage);
+	if (i < #o)
+	    res = res..", ";
     }
-    if (o.kind != "op" || o.op.name != "dot") {
-	emiterror("syntax error");
-	return "";
-    }
-    
+
+    o.func.signature = o;
+    var f = handle(o.func, "right_"..stage, stage);
+
+    o.type = o.func.rettype;
+
+    return f.."("..res..")";
+}
+
+dot_right_code0_write = function(o, stage) {
     var o1, o2;
 
-    if (!owner)
-	o1 = handle(o[1], "right_"..stage, stage);
-    else
-	o1 = dot_right_code0_write(o[1], stage, owner);
-    owner = o[1].type;
-    o2 = dot_right_code0_write(o[2], stage, owner);
+    o[1].explicitowner = o.explicitowner;
+    o1 = handle(o[1], "right_"..stage, stage);
+
+    o[2].explicitowner = o[1].type;
+    o[2].signature = o.signature;
+    o2 = handle(o[2], "right_"..stage, stage);
 
     o.type = o[2].type;
 
     return string.format("%s -> %s ", o1, o2);
+    
 }
 
 op_kind.right_code0_write = function(o, stage) {
@@ -239,22 +248,25 @@ op_kind.right_code0_write = function(o, stage) {
 	return string.format("( %s %s %s )", o1, o.op.cop, o2);
     else
 	return string.format("%s( %s, %s )", cfuncname(m), o1, o2);
-/*    var tmp = newtmp();
-    if (o.type)
-	o.type.localdecl_write(o.type, { name = tmp });
-    outf("\t%s = operator_%s%s( %s, %s );\n", tmp, o.op.name, paramssuffix(o), o1, o2);
-    return tmp;*/
 }
 
 memberref_kind.right_code0_write = function(o, stage) {
     var res = o.target;
-    var ns = o.owner;
-    while (!ns.members[o.target] && ns.owner) {
-	ns = ns.owner;
-	res = thiz.."->"..res;
+    var lookup = o.target..paramssuffix(o.signature);
+    var ns;
+    if (o.explicitowner)
+	ns = o.explicitowner;
+    else {
+	ns = o.owner;
+	while (!ns.members[lookup] && ns.owner) {
+	    ns = ns.owner;
+	    res = thiz.."->"..res;
+	}
     }
-    if (ns.members[o.target])
-	o.type = ns.members[o.target].type;
+    if (ns.members[lookup])
+	o.type = ns.members[lookup].type;
+    else if (o.explicitowner)
+	emiterror("unknown member "..o.target);
     else
 	emiterror("unknown identifier "..o.target);
     if (ns.kind == "namespace")
@@ -302,6 +314,7 @@ function codegen() {
 	writestage(namespace, stage);
     }
 
+    //dump(namespace);
 }
 
 ;

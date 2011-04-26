@@ -50,6 +50,29 @@ function processterm(token) {
     return token, res;
 }
 
+operators['('].special = function(res)
+{
+    token = gettoken();
+    res = {
+	func = res,
+    }
+    setkind(res, call_kind);
+    while (token && token != ')') {
+	var r;
+	token, r = processexpression(token);
+	table.insert(res, r);
+	if (token != ',' && token != ')') {
+	    emiterror("',' or ')' expected");
+	    break;
+	}
+	if (token == ',')
+	    token = gettoken();
+    }
+    return gettoken(), res;
+}
+
+
+
 function processexpression(token, prio) {
     var res;
     prio = prio or 0;
@@ -60,13 +83,17 @@ function processexpression(token, prio) {
 	var op = operators[token];
 	
 	// binary operators
-	if (op && op.prio >= prio) {
-	    token, right = processexpression(gettoken(), op.prio);
-	    res = {
-		res, right,
-		op = op,
-	    };
-	    setkind(res, op_kind);
+	if (op && op.prio > prio) {
+	    if (op.special)
+		token, res = op.special(res);
+	    else {
+		token, right = processexpression(gettoken(), op.prio);
+		res = {
+		    res, right,
+		    op = op,
+		};
+		setkind(res, op_kind);
+	    }
 	} else
 	    break;
     }
@@ -82,7 +109,7 @@ function processstatement(token) {
 	};
 	setkind(r, return_kind);
 	token, r[1] = processexpression(gettoken());
-	return token, r;
+	return checksemicolon(token), r;
     }
     return processdecl(token);
 }

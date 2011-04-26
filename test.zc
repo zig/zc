@@ -1,11 +1,13 @@
-class test {
+class test_t {
     class lolo {
 	int titi;
+	//int majoliemethode() { return 42; }
     }
     
     int a;
+    lolo lala;
 
-    static int operator_plus(int a, lolo l) {
+    static float operator_plus(float a, lolo l) {
 	return a + l.titi;
     }
     
@@ -14,6 +16,16 @@ class test {
 	lolo b;
 
 	b.titi;
+	this.lala.titi;
+	//lala.titi + this.lala.majoliemethode();
 	return (a + x / y + a) * x + b.titi + b;
     }
+}
+
+
+
+int main() {
+    test_t test;
+
+    return test.toto(10, 3.5);
 }
