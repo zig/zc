@@ -25,6 +25,7 @@ class test_t {
     int toto(int x, float y)
     {
 	lolo_t b;
+	b = new lolo_t;
 
 	/*class pipo_t {
 	    int bambi;
@@ -35,11 +36,11 @@ class test_t {
 
 	    pipo_t world;*/
 
-	b.titi;
+	b.titi = 32;
 	this.lala.titi;
 	jolie().a;
 	lala.titi + this.lala.majoliemethode();
-	return (a + x / y + a) * x + b.titi + b;
+	return (a + x / y + a) * x + (b.titi = 4) + b;
     }
 }
 
@@ -50,6 +51,7 @@ int main() {
 
     int a, b;
     a = b = 42;
+    test = new test_t;
 
     return test.toto(10, 3.5);
 }

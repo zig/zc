@@ -242,6 +242,12 @@ assign_kind.code0_write = function(o, stage) {
     return format("(%s = %s)", o1, o2);
 }
 
+new_kind.code0_write = function(o, stage) {
+    resolve_type(o);
+
+    return format("calloc(sizeof(%s), 1)", cnsname(o.type));
+}
+
 dot_kind.code0_write = function(o, stage, owner, signature) {
     var o1, o2;
 

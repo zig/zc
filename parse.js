@@ -34,6 +34,11 @@ function processterm(token) {
 	};
 	setkind(res, string_kind);
 	token = gettoken();
+    } else if (token == "new") {
+	res = {
+	};
+	setkind(res, new_kind);
+	token, res.type = processtype(gettoken());
     } else if (source.tokentype == "word") {
 	res = {
 	    target = token,
@@ -85,7 +90,7 @@ function processexpression(token, prio) {
 	    if (op.special)
 		token, res = op.special(res);
 	    else {
-		token, right = processexpression(gettoken(), op.prio);
+		token, right = processexpression(gettoken(), op.prio2 || op.prio);
 		res = {
 		    res, right,
 		    op = op,
@@ -107,12 +112,6 @@ function processstatement(token) {
 	};
 	setkind(r, return_kind);
 	token, r[1] = processexpression(gettoken());
-	return checksemicolon(token), r;
-    } else if (token == "new") {
-	var r = {
-	};
-	setkind(r, new_kind);
-	token, r.type = processtype(token);
 	return checksemicolon(token), r;
     }
     return processdecl(token);

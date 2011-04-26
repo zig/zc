@@ -189,12 +189,6 @@ operators = {
 	prio = 2,
 	numeric = 1,
     },
-    ['.'] = {
-	name = "dot",
-	cop = '.',
-	prio = 10,
-	specialkind = dot_kind,
-    },
     ['('] = {
 	name = "call",
 	cop = '(',
@@ -203,8 +197,15 @@ operators = {
     ['='] = {
 	name = "assign",
 	cop = '=',
-	prio = 20,
+	prio = 9.5,
+	prio2 = 9.4,
 	specialkind = assign_kind,
+    },
+    ['.'] = {
+	name = "dot",
+	cop = '.',
+	prio = 10,
+	specialkind = dot_kind,
     },
 };
 
