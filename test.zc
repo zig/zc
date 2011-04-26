@@ -1,19 +1,19 @@
 class test_t {
-    class lolo {
+    class lolo_t {
 	int titi;
 	//int majoliemethode() { return 42; }
     }
     
     int a;
-    lolo lala;
+    lolo_t lala;
 
-    static float operator_plus(float a, lolo l) {
+    static float operator_plus(float a, lolo_t l) {
 	return a + l.titi;
     }
     
     int toto(int x, float y)
     {
-	lolo b;
+	lolo_t b;
 
 	b.titi;
 	this.lala.titi;

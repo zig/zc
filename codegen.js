@@ -196,9 +196,9 @@ func_kind.code0_write = function(f, stage) {
 
 number_kind.right_code0_write = function(o, stage) {
     if (string.find(o.target, '[.]'))
-	o.type = gettype("float");
+	o.type = gettype("float", globalns);
     else
-	o.type = gettype("int");
+	o.type = gettype("int", globalns);
     return o.target;
 }
 
@@ -210,33 +210,25 @@ call_kind.right_code0_write = function(o, stage) {
 	    res = res..", ";
     }
 
-    o.func.signature = o;
-    var f = handle(o.func, "right_"..stage, stage);
+    var f = handle(o.func, "right_"..stage, stage, nil, o);
 
     o.type = o.func.rettype;
 
     return f.."("..res..")";
 }
 
-dot_right_code0_write = function(o, stage) {
+dot_kind.right_code0_write = function(o, stage, owner, signature) {
     var o1, o2;
 
-    o[1].explicitowner = o.explicitowner;
-    o1 = handle(o[1], "right_"..stage, stage);
-
-    o[2].explicitowner = o[1].type;
-    o[2].signature = o.signature;
-    o2 = handle(o[2], "right_"..stage, stage);
+    o1 = handle(o[1], "right_"..stage, stage, owner);
+    o2 = handle(o[2], "right_"..stage, stage, o[1].type, signature);
 
     o.type = o[2].type;
 
     return string.format("%s -> %s ", o1, o2);
-    
 }
 
 op_kind.right_code0_write = function(o, stage) {
-    if (o.op.name == "dot")
-	return dot_right_code0_write(o, stage);
     var o1, o2 = handle(o[1], "right_"..stage, stage), handle(o[2], "right_"..stage, stage);
     var m = getmember("operator_"..o.op.name..paramssuffix(o));
     if (!m) {
@@ -250,13 +242,10 @@ op_kind.right_code0_write = function(o, stage) {
 	return string.format("%s( %s, %s )", cfuncname(m), o1, o2);
 }
 
-memberref_kind.right_code0_write = function(o, stage) {
+memberref_kind.right_code0_write = function(o, stage, ns, signature) {
     var res = o.target;
-    var lookup = o.target..paramssuffix(o.signature);
-    var ns;
-    if (o.explicitowner)
-	ns = o.explicitowner;
-    else {
+    var lookup = o.target..paramssuffix(signature);
+    if (!ns) {
 	ns = o.owner;
 	while (!ns.members[lookup] && ns.owner) {
 	    ns = ns.owner;

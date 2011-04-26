@@ -107,6 +107,10 @@ op_kind = {
     kind = "op",
 };
 
+dot_kind = {
+    kind = "dot",
+};
+
 number_kind = {
     kind = "number",
 };
@@ -136,6 +140,7 @@ namespace = {
     types = types,
     methods = {},
 };
+globalns = namespace;
 setkind(namespace, namespace_kind);
 
 namespaces = { }
@@ -179,6 +184,7 @@ operators = {
 	name = "dot",
 	cop = '.',
 	prio = 10,
+	specialkind = dot_kind,
     },
     ['('] = {
 	name = "call",

@@ -71,8 +71,6 @@ operators['('].special = function(res)
     return gettoken(), res;
 }
 
-
-
 function processexpression(token, prio) {
     var res;
     prio = prio or 0;
@@ -92,7 +90,7 @@ function processexpression(token, prio) {
 		    res, right,
 		    op = op,
 		};
-		setkind(res, op_kind);
+		setkind(res, op.specialkind or op_kind);
 	    }
 	} else
 	    break;
