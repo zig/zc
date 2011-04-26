@@ -5,10 +5,15 @@ class test {
     
     int a;
 
+    static int operator_plus(int a, lolo l) {
+	return a + l.titi;
+    }
+    
     int toto(int x, float y)
     {
 	lolo b;
 
-	return (a + x / y + a) * x + b.titi;
+	b.titi;
+	return (a + x / y + a) * x + b.titi + b;
     }
 }

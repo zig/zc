@@ -466,8 +466,8 @@ function writeoutputs() {
 }
 
 newoutput("header", "a.h");
-newoutput("source", "a.c");
-setoutput("source");
+newoutput("code", "a.c");
+setoutput("code");
 
 function out(s) {
     s = string.gsub(s, "\t", output.curindent);

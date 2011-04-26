@@ -1,26 +1,8 @@
 
-function pushnamespace(ns) {
-    table.insert(namespaces, namespace);
-    namespace = ns;
-    types = ns.types;
-    members = ns.members;
-}
-
-function popnamespace() {
-    namespace = table.remove(namespaces);
-    types = namespace.types;
-    members = namespace.members;
-}
 function processtype(token) {
     if (source.tokentype != "word")
 	return token;
-    var name = token;
-    t = {
-	kind = "typeref",
-	target = name,
-    };
-    token = gettoken();
-    return token, t;
+    return gettoken(), typeref(token);
 }
 
 function checksemicolon(token) {
@@ -55,6 +37,7 @@ function processterm(token) {
     } else if (source.tokentype == "word") {
 	res = {
 	    target = token,
+	    owner = namespace,
 	};
 	setkind(res, memberref_kind);
 	token = gettoken();
@@ -66,29 +49,6 @@ function processterm(token) {
 
     return token, res;
 }
-
-operators = {
-    ['+'] = {
-	name = '+',
-	prio = 1,
-    },
-    ['-'] = {
-	name = '-',
-	prio = 1,
-    },
-    ['/'] = {
-	name = '/',
-	prio = 2,
-    },
-    ['*'] = {
-	name = '*',
-	prio = 2,
-    },
-    ['.'] = {
-	name = '.',
-	prio = 10,
-    },
-};
 
 function processexpression(token, prio) {
     var res;
@@ -145,7 +105,7 @@ function processblock(token) {
     return token, code;
 }
 
-function processfunc(funcname, rettype) {
+function processfunc(funcname, rettype, mods) {
     var params = { };
 
     func = {
@@ -155,10 +115,11 @@ function processfunc(funcname, rettype) {
 	params = params,
 	types = {},
 	members = {},
-    }
+	mods = mods,
+    };
     setkind(func, func_kind);
-    setmember(func);
-
+    //setmember(func);
+    table.insert(namespace.methods, func);
     pushnamespace(func);
 
     var token = gettoken();
@@ -179,7 +140,7 @@ function processfunc(funcname, rettype) {
 	    name = token,
 	    type = type,
 	    param_index = #params + 1,
-	}
+	};
 	setkind(param, var_kind);
 	setmember(param);
 	table.insert(params, param);
@@ -210,7 +171,7 @@ function processfunc(funcname, rettype) {
     return token;
 }
 
-function processclassdecl() {
+function processclassdecl(mods) {
     var name = gettoken();
     var token = gettoken();
 
@@ -223,7 +184,9 @@ function processclassdecl() {
 	name = name,
 	members = {},
 	types = {},
+	methods = {},
 	parent = namespace,
+	mods = mods,
     };
     settype(c, class_kind);
     pushnamespace(c);
@@ -237,11 +200,22 @@ function processclassdecl() {
     return gettoken();
 }
 
+ismod = {
+    static = 1,
+};
+
 function processdecl(token) {
+
+    var mods = { };
+
+    while (token && ismod[token]) {
+	mods[token] = 1;
+	token = gettoken();
+    }
 
     var pos = savepos(source);
     if (token == "class")
-	return processclassdecl(token);
+	return processclassdecl(mods);
 
     var type;
     token, type = processtype(token);
@@ -258,7 +232,7 @@ function processdecl(token) {
     token = gettoken();
 
     if (token == '(') { // function declaration
-	token = processfunc(name, type);
+	token = processfunc(name, type, mods);
     } else { // this is a variable
 	var v = {
 	    name = name,
@@ -275,6 +249,7 @@ function processdecl(token) {
 	    v = {
 		name = name,
 		type = type,
+		mods = mods,
 	    };
 	    setkind(v, var_kind);
 	    setmember(v);

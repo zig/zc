@@ -1,4 +1,24 @@
 
+function pushnamespace(ns) {
+    table.insert(namespaces, namespace);
+    namespace = ns;
+    types = ns.types;
+    members = ns.members;
+}
+
+function popnamespace() {
+    namespace = table.remove(namespaces);
+    types = namespace.types;
+    members = namespace.members;
+}
+
+function typeref(name) {
+    return {
+	kind = "typeref",
+	target = name,
+    };
+}
+
 function setmeta(meta) {
     meta.__index = function (obj, i) {
 	return rawget(obj, i) or meta[i];
@@ -26,17 +46,17 @@ function gettype(name, ns) {
     var res = ns.types[name];
     if (res)
 	return res;
-    else if (ns.parent)
-	return gettype(name, ns.parent);
+    else if (ns.owner)
+	return gettype(name, ns.owner);
     else
 	return nil;
 }
 
-function setmember(v) {
+function setmember(v, ns) {
     var name = v.name;
     if (members[name])
 	emiterror("shadowing existing variable");
-    v.owner = namespace;
+    v.owner = ns or namespace;
     members[name] = v;
 }
 
@@ -45,8 +65,8 @@ function getmember(name, ns) {
     var res = ns.members[name];
     if (res)
 	return res;
-    else if (ns.parent)
-	return getvar(name, ns.parent);
+    else if (ns.owner)
+	return getmember(name, ns.owner);
     else
 	return nil;
 }
@@ -68,6 +88,10 @@ var_kind = {
 };
 
 func_kind = {
+    kind = "func",
+};
+
+intrinsicfunc_kind = {
     kind = "func",
 };
 
@@ -106,6 +130,7 @@ members = { };
 namespace = {
     members = members,
     types = types,
+    methods = {},
 };
 setkind(namespace, namespace_kind);
 
@@ -119,6 +144,76 @@ function defctype(name) {
     settype(t, ctype_kind);
 }
 
-defctype("int");
-defctype("float");
 defctype("void");
+
+operators = {
+    ['+'] = {
+	name = "plus",
+	cop = '+',
+	prio = 1,
+    },
+    ['-'] = {
+	name = "minus",
+	cop = '-',
+	prio = 1,
+    },
+    ['/'] = {
+	name = "divise",
+	cop = '/',
+	prio = 2,
+    },
+    ['*'] = {
+	name = "multiply",
+	cop = '*',
+	prio = 2,
+    },
+    ['.'] = {
+	name = "dot",
+	cop = '.',
+	prio = 10,
+    },
+};
+
+numbers = { 
+    int = 1, 
+    float = 2,
+    double = 3,
+};
+
+for (t1, p1 in pairs(numbers))
+    defctype(t1);
+for (t1, p1 in pairs(numbers)) {
+    for (t2, p2 in pairs(numbers)) {
+	var rt;
+	if (p1 > p2) rt = t1; else rt = t2;
+	print(rt, t1, t2);
+	for (_, o in pairs(operators)) {
+	    var func = {
+		name = "operator_"..o.name,
+		parent = namespace,
+		rettype = typeref(rt),
+		params = {
+		    {
+			name = "left",
+			type = typeref(t1),
+		    },
+		    {
+			name = "right",
+			type = typeref(t2),
+		    }
+		},
+		types = {},
+		members = {},
+		intrinsic = {
+
+		},
+	    }
+	    func.members.left = func.params[1];
+	    func.members.right = func.params[2];
+	    setkind(func, intrinsicfunc_kind);
+	    table.insert(namespace.methods, func);
+	}
+    }
+}
+
+;
