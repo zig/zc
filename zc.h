@@ -8,12 +8,12 @@
 #define zc_objunref(obj) obj
 
 
-#define zc_setglobal(g, v) g = (v)
+#define zc_setglobal(g, v) (g = (v))
 #define zc_getglobal(g) g
 
-#define zc_setmember(obj, field, v) (obj)->field = v
+#define zc_setmember(obj, field, v) ((obj)->field = v)
 #define zc_getmember(obj, field) (obj)->field
 
-#define zc_setlocal(g, v) g = (v)
-#define zc_getlocal(g) g
+#define zc_setlocal(l, v) (l = (v))
+#define zc_getlocal(l) l
 

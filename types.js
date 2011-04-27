@@ -123,11 +123,20 @@ string_kind = {
 memberref_kind = {
     kind = "memberref",
 };
+memberset_kind = {
+    kind = "memberset",
+};
 globalref_kind = {
     kind = "globalref",
 };
+globalset_kind = {
+    kind = "globalset",
+};
 localref_kind = {
     kind = "localref",
+};
+localset_kind = {
+    kind = "localset",
 };
 
 call_kind = {

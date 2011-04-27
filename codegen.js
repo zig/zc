@@ -261,21 +261,36 @@ call_kind.code0_write = function(o, stage) {
     return cfuncname(o.func).."("..params..")";
 }
 
+var assigners = {
+    memberref = memberset_kind,
+    globalref = globalset_kind,
+    localref = localset_kind,
+}
 assign_kind.ana0 = function(o, stage) {
-    handle(o[1], stage);
-    handle(o[2], stage);
+    o[1] = handle(o[1], stage);
+    o[2] = handle(o[2], stage);
 
-    if (!o[1].member || o[1].member.kind != "var")
-	emiterror("lvalue expected");
+    /*if (!o[1].member || o[1].member.kind != "var")
+	emiterror("lvalue expected");*/
 
     if (o[1].type != o[2].type)
 	emiterror("incompatible types in assignement");
-    
+
     o.type = o[2].type;
+
+    var r = o[1];
+    if (assigners[r.kind]) {
+	setkind(o, assigners[r.kind]);
+	o.target = r.target;
+	table.remove(o, 1);
+    } else if (r.kind == "dot") {
+	setkind(o, memberset_kind);
+	o[1] = r[1];
+	o.target = r[2].target;
+    } else
+	emiterror("lvalue expected");
+
     return o;
-}
-assign_kind.code0_write = function(o, stage) {
-    return format("(%s = %s)", handle(o[1], stage), handle(o[2], stage));
 }
 
 new_kind.ana0 = function(o, stage) {
@@ -304,18 +319,17 @@ dot_kind.ana0 = function(o, stage, owner, signature) {
     return o;
 }
 dot_kind.code0_write = function(o, stage, owner, signature) {
-    return string.format("%s -> %s ", handle(o[1], stage), handle(o[2], stage));
+    return string.format("zc_getmember(%s, %s)", handle(o[1], stage), handle(o[2], stage));
 }
 
 op_kind.ana0 = function(o, stage) {
     o[1] = handle(o[1], stage);
     o[2] = handle(o[2], stage);
     var lookup = "__operator_"..o.op.name..paramssuffix(o);
-    var m = getmember(lookup);
-    if ((!m || m.is_method) && o[1].type) {
-	var lookup = "__operator_"..o.op.name..paramssuffix({ o[2] });
-	m = o[1].type.members[lookup];
-    }
+    var m = getmember(lookup); /* static method */
+    if ((!m || m.is_method) && o[1].type)
+	/* try non static */
+	m = o[1].type.members["__operator_"..o.op.name..paramssuffix({ o[2] })];
     if (!m) {
 	emiterror("unknown method "..lookup);
 	return o;
@@ -324,6 +338,7 @@ op_kind.ana0 = function(o, stage) {
     o.type = m.rettype;
 
     if (!m.intrinsic)
+	/* morph to a normal call */
 	setkind(o, call_kind);
 
     return o;
@@ -345,7 +360,7 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
 	v = ns.members[lookup];
 	// TODO look for static members first
 	while (!v && ns.owner && ns.members[thiz]) {
-	    var o2 = { target = thiz, type = ns };
+	    var o2 = { target = thiz, type = ns, owner = o.owner };
 	    setkind(o2, memberref_kind);
 	    res = { o2, res };
 	    setkind(res, dot_kind);
@@ -360,8 +375,11 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
     }
     v = ns.members[lookup];
     if (v) {
-	if (ns.kind == "namespace" || v.mods.static)
+	if (ns.kind == "namespace" || v.mods.static) {
 	    res = o;
+	    setkind(o, globalref_kind);
+	} else if (explicitowner == o.owner)
+	    setkind(o, localref_kind);
 	res.member = v;
 	res.type = v.type;
     } else if (ns.kind == "class")
@@ -372,6 +390,21 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
 }
 memberref_kind.code0_write = function(o, stage, explicitowner, signature) { 
     return o.target;
+}
+memberset_kind.code0_write = function(o, stage) {
+    return format("zc_setmember(%s, %s, %s)", handle(o[1], stage), o.target, handle(o[2], stage));
+}
+globalref_kind.code0_write = function(o, stage, explicitowner, signature) { 
+    return string.format("zc_getglobal(%s)", o.target);
+}
+globalset_kind.code0_write = function(o, stage) {
+    return format("zc_setglobal(%s, %s)", o.target, handle(o[1], stage));
+}
+localref_kind.code0_write = function(o, stage, explicitowner, signature) { 
+    return string.format("zc_getlocal(%s)", o.target);
+}
+localset_kind.code0_write = function(o, stage) {
+    return format("zc_setlocal(%s, %s)", o.target, handle(o[1], stage));
 }
 
 nil_kind.code0_write = function(o) {
