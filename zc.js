@@ -88,13 +88,35 @@ function dbgmessage(msg) {
 
 // emit an error, optionally print information about status in source where the error occured
 function emiterror(msg, psource) {
-	var p="";
-	psource = psource || source;
-	if (source)
-    		p = format("%s (%d) at token '%s' : ", source.filename, source.nline || -1, source.token || "<null>");
-	_message(p..msg);
-	has_error = 1;
-	num_error = (num_error || 0) + 1;
+    psource = psource || source;
+    if (source) {
+    	msg = format("%s (%d) at token '%s' : %s", source.filename, source.nline || -1, source.token || "<null>", msg);
+	var pos = source.tokenpos;
+	var line = source.tokenlines[pos];
+	while (pos > 1 && source.tokenlines[pos] == line)
+	    pos--;
+	pos++;
+	var i;
+	i = pos;
+	msg = msg.."\n\t";
+	while (source.tokens[i] && source.tokenlines[i] == line) {
+	    msg = msg..source.tokens[i].." ";
+	    i++;
+	}
+	i = pos;
+	msg = msg.."\n\t";
+	while (source.tokens[i] && source.tokenlines[i] == line) {
+	    if (i == source.tokenpos - 1) {
+		msg = msg.."^";
+		break;
+	    }
+	    msg = msg..string.rep(' ', #source.tokens[i] + 1);
+	    i++;
+	}
+    }
+    _message(msg);
+    has_error = 1;
+    num_error = (num_error || 0) + 1;
 }
 
 
@@ -408,13 +430,13 @@ function zc(f) {
 
 	closesource(source);
 
+	codegen();
+
 	if (has_error) {
 		message(format("%d error(s) while compiling", num_error));
 		return "";
 	} else
 		message(format("no error while compiling"));
-
-	codegen();
 
 	writeoutputs();
 }

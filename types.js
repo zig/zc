@@ -158,6 +158,8 @@ function defctype(name) {
     var t = {
 	name = name,
 	target = name,
+	members = {},
+	types = {},
     };
     settype(t, ctype_kind);
 }

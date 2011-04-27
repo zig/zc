@@ -40,6 +40,8 @@ function processterm(token) {
 	};
 	setkind(res, new_kind);
 	token, res.type = processtype(gettoken());
+	if (!res.type)
+	    emiterror("type expected");
     } else if (source.tokentype == "word") {
 	res = {
 	    target = token,
@@ -253,11 +255,11 @@ function processdecl(token) {
 	token = gettoken();
     }
 
-    var pos = savepos(source);
     if (token == "class")
 	return processclassdecl(mods);
 
     var type;
+    var pos = savepos(source);
     token, type = processtype(token);
 
     if (!type || source.tokentype != "word") {
@@ -335,7 +337,7 @@ function processsource(source) {
 	token = processdecl(token);
     }
 
-    dump(namespace);
+    //dump(namespace);
 }
 
 
