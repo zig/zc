@@ -45,10 +45,12 @@ class test_t {
 	x + y;
 	b.titi = b.titi = 32;
 	//(x + y) = 2.5;
+	//3();
 	this.lala.titi;
 	jolie().a;
 	//moche = 32; // bug !!
 	//3.5 + moche;
+	//moche;
 	lala.titi + this.lala.majoliemethode();
 	this + 3.5;
 	return (a + x / y + a) * x + (b.titi = 4) + b;

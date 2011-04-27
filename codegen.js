@@ -41,11 +41,15 @@ function paramssuffix(params, is_method) {
 }
 
 function funcname(f) {
+    if (!f)
+	return "?";
     var res = f.name;
     return f.name .. paramssuffix(f.params, f.is_method);
 }
 
 function cfuncname(f) {
+    if (!f)
+	return "?";
     return cnsprefix(f.owner)..funcname(f);
 }
 
@@ -242,10 +246,13 @@ call_kind.ana0 = function(o, stage) {
 
     var thiz = handle(o.func, stage, stage, nil, o);
     o.func = thiz.member;
-    o.type = o.func.rettype;
-    if (o.func.kind != "func")
+    if (!o.func || o.func.kind != "func") {
 	// TODO look for an 'invoke' operator
 	emiterror("trying to call something that is not callable");
+	return o;
+    }
+    thiz = thiz[1];
+    o.type = o.func.rettype;
     if (o.func.is_method)
 	table.insert(o, 1, thiz);
     return o;
@@ -311,11 +318,6 @@ dot_kind.ana0 = function(o, stage, owner, signature) {
     o.type = o[2].type;
     o.member = o[2].member;
 
-    if (o.member && o.member.rettype) {
-	o[1].member = o.member;
-	return o[1];
-    }
-
     return o;
 }
 dot_kind.code0_write = function(o, stage, owner, signature) {
@@ -366,10 +368,6 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
 	    setkind(res, dot_kind);
 	    ns = ns.owner;
 	    v = ns.members[lookup];
-	    if (!o.owner.is_method && v && (!v.mods || !v.mods.static)) {
-		emiterror("cannot access non static member "..o.target.." from static method");
-		break;
-	    }
 	}
 	return handle(res, stage, stage, o.owner, signature);
     }
