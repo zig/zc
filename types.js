@@ -123,6 +123,12 @@ string_kind = {
 memberref_kind = {
     kind = "memberref",
 };
+globalref_kind = {
+    kind = "globalref",
+};
+localref_kind = {
+    kind = "localref",
+};
 
 call_kind = {
     kind = "call",

@@ -163,6 +163,7 @@ intrinsicfunc_kind.init0 = function(f, stage) {
 	    name = thiz,
 	    type = f.owner,
 	    param_index = 1,
+	    mods = {},
 	}
 	setkind(param, var_kind);
 	//print(f.name);
@@ -240,7 +241,11 @@ call_kind.ana0 = function(o, stage) {
 	o[i] = handle(p, stage);
 
     o.func = handle(o.func, stage, stage, nil, o);
-    o.type = o.func.type;
+    var f = o.func.member;
+    o.type = f.rettype;
+    if (f.kind != "func")
+	// TODO look for an 'invoke' operator
+	emiterror("trying to call something that is not callable");
     return o;
 }
 call_kind.code0_write = function(o, stage) {
@@ -262,14 +267,14 @@ call_kind.code0_write = function(o, stage) {
 	    params = ", "..params;
 	params = thiz..params;
     }
-    return cfuncname(o.func.member).."("..params..")";
+    return cfuncname(f).."("..params..")";
 }
 
 assign_kind.ana0 = function(o, stage) {
     handle(o[1], stage);
     handle(o[2], stage);
 
-    if (!o[1].member)
+    if (!o[1].member || o[1].member.kind != "var")
 	emiterror("lvalue expected");
 
     if (o[1].type != o[2].type)
@@ -291,26 +296,33 @@ new_kind.code0_write = function(o, stage) {
 }
 
 dot_kind.ana0 = function(o, stage, owner, signature) {
+    if (o[2].kind != "memberref")
+	emiterror("syntax error");
+
     o[1] = handle(o[1], stage, stage, owner);
     o[2] = handle(o[2], stage, stage, o[1].type, signature);
 
-    if (o[2].kind != "dot" && o[2].kind != "memberref")
-	emiterror("syntax error");
-
     o.type = o[2].type;
     o.member = o[2].member;
+
+    if (o.member && o.member.rettype) {
+	o[1].member = o.member;
+	return o[1];
+    }
+
     return o;
 }
 dot_kind.code0_write = function(o, stage, owner, signature) {
     var o1, o2;
 
     o1 = handle(o[1], stage);
-    o2 = handle(o[2], stage);
 
-    if (o.member && o.member.rettype)
-	return o1;
-    else
+    /*if (o.member && o.member.rettype)
+	return o1; // this is kind of hackish, but it works right now
+    else*/ {
+	o2 = handle(o[2], stage);
 	return string.format("%s -> %s ", o1, o2);
+    }
 }
 
 op_kind.ana0 = function(o, stage) {
@@ -344,6 +356,7 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
     if (!explicitowner) {
 	ns = o.owner;
 	v = ns.members[lookup];
+	// TODO look for static members first
 	while (!v && ns.owner && ns.members[thiz]) {
 	    var o2 = { target = thiz, type = ns };
 	    setkind(o2, memberref_kind);
@@ -360,23 +373,18 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
     }
     v = ns.members[lookup];
     if (v) {
-	if (ns.kind == "namespace")
+	if (ns.kind == "namespace" || v.mods.static)
 	    res = o;
 	res.member = v;
-	if (v.rettype) {
-	    res.type = v.rettype;
-	    // TODO remove rightest leaf
-	} else
-	   res.type = v.type;
-    } else if (explicitowner)
+	res.type = v.type;
+    } else if (ns.kind == "class")
 	emiterror("unknown member "..o.target);
     else
 	emiterror("unknown identifier "..o.target);
     return res;
 }
 memberref_kind.code0_write = function(o, stage, explicitowner, signature) { 
-    var v = o.member;
-    return (v && v.name) || "";
+    return o.target;
 }
 
 nil_kind.code0_write = function(o) {
@@ -385,6 +393,10 @@ nil_kind.code0_write = function(o) {
  
 return_kind.ana0 = function(o, stage) {
     o[1] = handle(o[1], stage);
+    //o[1] = make_ref(o[1]);
+    if (o[1].type != o.owner.rettype)
+	emiterror("incompatible returned type");
+    return o;
 }
 return_kind.code0_write = function(o, stage) {
     outfi("return %s;\n", handle(o[1], stage));
@@ -392,6 +404,7 @@ return_kind.code0_write = function(o, stage) {
 
 expr_kind.ana0 = function(o, stage) {
     o[1] = handle(o[1], stage);
+    return o;
 }
 expr_kind.code0_write = function(o, stage) {
     outfi("%s;\n", handle(o[1], stage));

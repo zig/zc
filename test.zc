@@ -12,17 +12,20 @@ class test_t {
     test_t jolie() {
 	return this;
     }
+    int moche() {
+	return 3;
+    }
 
     static float __operator_plus(float a, lolo_t l) {
 	return a + l.titi;
     }
     
     /*static*/ int with_closure() { // static is forbiden because the method access non static members
-	toto(32, 5.3);
+	this.toto(32, 5.3);
 	return a;
     }
 
-    int toto(int x, float y)
+    float toto(int x, float y)
     {
 	lolo_t b;
 	b = new lolo_t;
@@ -40,6 +43,8 @@ class test_t {
 	b.titi = b.titi = 32;
 	this.lala.titi;
 	jolie().a;
+	//moche = 32; // bug !!
+	//3.5 + moche;
 	lala.titi + this.lala.majoliemethode();
 	return (a + x / y + a) * x + (b.titi = 4) + b;
     }
@@ -47,7 +52,7 @@ class test_t {
 
 
 
-int main() {
+float main() {
     test_t test/* = new test_t()*/;
 
     int a, b;

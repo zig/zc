@@ -91,7 +91,7 @@ function emiterror(msg, psource) {
     psource = psource || source;
     if (source) {
     	msg = format("%s (%d) at token '%s' : %s", source.filename, source.nline || -1, source.token || "<null>", msg);
-	var pos = source.tokenpos;
+	var pos = source.tokenpos - 1;
 	var line = source.tokenlines[pos];
 	while (pos > 1 && source.tokenlines[pos] == line)
 	    pos--;

@@ -94,10 +94,12 @@ function processexpression(token, prio) {
 	    if (op.special)
 		token, res = op.special(token, res);
 	    else {
+		var pos = savepos();
 		token, right = processexpression(token, op.prio2 || op.prio);
 		res = {
 		    res, right,
 		    op = op,
+		    source = pos,
 		};
 		setkind(res, op.specialkind or op_kind);
 	    }
@@ -131,6 +133,7 @@ function processblock(token) {
 	    token, s = processstatement(token);
 	    if (s) {
 		s.source = pos;
+		s.owner = namespace;
 		table.insert(code, s);
 	    }
 	}
@@ -140,6 +143,7 @@ function processblock(token) {
 	token, s = processstatement(token);
 	if (s) {
 	    s.source = pos;
+	    s.owner = namespace;
 	    table.insert(code, s);
 	}
     }
@@ -182,6 +186,7 @@ function processfunc(funcname, rettype, mods) {
 	    name = token,
 	    type = type,
 	    param_index = #params + 1,
+	    mods = {},
 	};
 	setkind(param, var_kind);
 	setmember(param);
@@ -289,7 +294,7 @@ function processdecl(token) {
 	    name = gettoken();
 	    if (source.tokentype != "word") {
 		emiterror("identifier expected");
-		return token;
+		return name;
 	    }
 	    token = gettoken();
 	}
@@ -300,10 +305,14 @@ function processdecl(token) {
 }
 
 
-function dump(v) {
+function dump(v, i) {
     var dones = { };
 
     var _dump;
+
+    var rpairs = pairs;
+    var pairs = pairs;
+    if (i) pairs = ipairs;
 
     _dump = function(v, indent) {
 	var res;
@@ -320,7 +329,7 @@ function dump(v) {
 	    res = "{\n"..indent;
 	    for (k, a in pairs(v)) if (k != "source")
 		res = res..string.format("  %s : %s\n"..indent, k, _dump(a, indent.."  "));
-	    for (k, a in pairs(getmetatable(v) or {}))
+	    for (k, a in rpairs(getmetatable(v) or {}))
 		res = res..string.format("  %s : %s\n"..indent, k, _dump(a, indent.."  "));
 	    res = res.."}";
 	} else
@@ -337,7 +346,7 @@ function processsource(source) {
 	token = processdecl(token);
     }
 
-    //dump(namespace);
+    dump(namespace);
 }
 
 
