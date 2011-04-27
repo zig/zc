@@ -19,6 +19,9 @@ class test_t {
     static float __operator_plus(float a, lolo_t l) {
 	return a + l.titi;
     }
+    float __operator_plus(float b) {
+	return a + b;
+    }
     
     /*static*/ int with_closure() { // static is forbiden because the method access non static members
 	this.toto(32, 5.3);
@@ -46,6 +49,7 @@ class test_t {
 	//moche = 32; // bug !!
 	//3.5 + moche;
 	lala.titi + this.lala.majoliemethode();
+	this + 3.5;
 	return (a + x / y + a) * x + (b.titi = 4) + b;
     }
 }
