@@ -318,7 +318,7 @@ function dump(v) {
 	    }
 	    dones[v] = 1;
 	    res = "{\n"..indent;
-	    for (k, a in pairs(v))
+	    for (k, a in pairs(v)) if (k != "source")
 		res = res..string.format("  %s : %s\n"..indent, k, _dump(a, indent.."  "));
 	    for (k, a in pairs(getmetatable(v) or {}))
 		res = res..string.format("  %s : %s\n"..indent, k, _dump(a, indent.."  "));
