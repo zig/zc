@@ -50,8 +50,13 @@ function cfuncname(f) {
 }
 
 function handle(obj, stage, newstage, ...) {
-    if (obj[stage])
-	return obj[stage](obj, newstage || stage, ...);
+    var pos = savepos();
+    var res;
+    if (obj.source)
+	gotopos(obj.source); // only so that emiterror point to correct position
+    res = obj[stage] && obj[stage](obj, newstage || stage, ...);
+    gotopos(pos);
+    return res;
 }
 
 function handle_code(code, stage) {
@@ -235,9 +240,12 @@ assign_kind.code0_write = function(o, stage) {
 
     if (!o[1].member)
 	emiterror("lvalue expected");
+
+    if (o[1].type != o[2].type)
+	emiterror("incompatible types");
     
     o.type = o[2].type;
-    o.member = o[2].member;
+    //o.member = o[2].member;
 
     return format("(%s = %s)", o1, o2);
 }
@@ -288,20 +296,20 @@ memberref_kind.code0_write = function(o, stage, explicitowner, signature) {
     var v;
     if (!explicitowner) {
 	ns = o.owner;
-	v = ns.members[lookup];
+	v = ns.members && ns.members[lookup];
 	while (!v && ns.owner) {
 	    ns = ns.owner;
 	    if (res != "")
 		res = "->"..res;
 	    res = thiz..res;
-	    v = ns.members[lookup];
+	    v = ns.members && ns.members[lookup];
 	    if (!o.owner.is_method && v && (!v.mods || !v.mods.static)) {
 		emiterror("cannot access non static member "..o.target.." from static method");
 		break;
 	    }
 	}
     }
-    v = ns.members[lookup];
+    v = ns.members && ns.members[lookup];
     o.member = v;
     if (v) {
 	if (ns.kind == "namespace")

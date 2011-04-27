@@ -175,13 +175,17 @@ function getline(source) {
 	//dbgmessage(format("%d %s", source.nline, source.linebuffer));
 }
 
-function savepos(source) {
-	return source.tokenpos;
+function savepos(psource) {
+    psource = psource || source;
+    return {
+	source = psource,
+	pos = psource.tokenpos,
+    };
 }
 
-function gotopos(source, pos) {
-	source.tokenpos = pos-1;
-	return gettoken(source);
+function gotopos(savedpos) {
+    savedpos.source.tokenpos = savedpos.pos-1;
+    return gettoken(savedpos.source);
 }
 
 function gettoken(psource) {

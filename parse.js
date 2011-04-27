@@ -15,6 +15,7 @@ function checksemicolon(token) {
 
 function processterm(token) {
     var res;
+    var pos = savepos();
 
     if (token == '(') {
 	token, res = processexpression(gettoken(), 0);
@@ -52,12 +53,12 @@ function processterm(token) {
 	setkind(res, nil_kind);
     }
 
+    res.source = pos;
     return token, res;
 }
 
-operators['('].special = function(res)
+operators['('].special = function(token, res)
 {
-    token = gettoken();
     res = {
 	func = res,
     }
@@ -87,10 +88,11 @@ function processexpression(token, prio) {
 	
 	// binary operators
 	if (op && op.prio > prio) {
+	    token = gettoken();
 	    if (op.special)
-		token, res = op.special(res);
+		token, res = op.special(token, res);
 	    else {
-		token, right = processexpression(gettoken(), op.prio2 || op.prio);
+		token, right = processexpression(token, op.prio2 || op.prio);
 		res = {
 		    res, right,
 		    op = op,
@@ -123,13 +125,21 @@ function processblock(token) {
     if (token == '{') {
 	token = gettoken();
 	while (token != '}') {
+	    var pos = savepos();
 	    token, s = processstatement(token);
-	    table.insert(code, s);
+	    if (s) {
+		s.source = pos;
+		table.insert(code, s);
+	    }
 	}
 	token = gettoken();
     } else {
+	var pos = savepos();
 	token, s = processstatement(token);
-	table.insert(code, s);
+	if (s) {
+	    s.source = pos;
+	    table.insert(code, s);
+	}
     }
 
     return token, code;
@@ -251,7 +261,7 @@ function processdecl(token) {
     token, type = processtype(token);
 
     if (!type || source.tokentype != "word") {
-	token = gotopos(source, pos);
+	token = gotopos(pos);
 	token, s = processexpression(token);
 	var expr = { s };
 	setkind(expr, expr_kind);

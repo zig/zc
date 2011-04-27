@@ -36,7 +36,7 @@ class test_t {
 
 	    pipo_t world;*/
 
-	b.titi = 32;
+	b.titi = b.titi = 32;
 	this.lala.titi;
 	jolie().a;
 	lala.titi + this.lala.majoliemethode();
