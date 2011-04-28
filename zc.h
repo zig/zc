@@ -10,9 +10,11 @@ struct zc_obj_s {
 };
 
 
-#define zc_objref(obj) (obj->__zc.refcount++, obj)
-inline _zc_objunref(void *ptr, zc_obj_t *m) { if ((--m->refcount) == 0) free(ptr); }
-#define zc_objunref(obj) (_zc_objunref(obj, &obj->zc), obj)
+#define zc_objref(obj) ((obj && obj->__zc.refcount++), obj)
+inline void _zc_objunref(void *ptr, zc_obj_t *m) { if (ptr && (--m->refcount) == 0) free(ptr); }
+#define zc_objunref(obj) (_zc_objunref(obj, &obj->__zc), obj)
+inline void *_zc_objnew(size_t size) { zc_obj_t *ptr = calloc(size, 1); ptr->refcount = 1; return ptr; }
+#define zc_objnew(type) (type *) _zc_objnew(sizeof(type))
 
 
 #define zc_setglobal(g, v) (g = (v))

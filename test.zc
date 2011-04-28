@@ -57,13 +57,15 @@ class test_t {
     }
 }
 
-
+int global_func() {
+    return 42;
+}
 
 float main() {
     test_t test/* = new test_t()*/;
 
     int a, b;
-    a = b = 42;
+    a = b = global_func();
     test = new test_t;
 
     return test.toto(10, 3.5);

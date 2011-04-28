@@ -65,19 +65,18 @@ function handle(obj, stage, newstage, ...) {
 }
 
 function handle_code(code, stage) {
-    var newcode = { };
+    var uppercode = newcode;
+    newcode = { };
+    var rescode = newcode;
     for (i, s in ipairs(code)) {
-	var o, before, after = handle(s, stage);
-	if (before) for (_, v in ipairs(before))
-	    table.insert(newcode, v);
+	var o = handle(s, stage);
 	if (type(o) != "table") // temp hack
 	    table.insert(newcode, s);
 	else
 	    table.insert(newcode, o);
-	if (after) for (_, v in ipairs(after))
-	    table.insert(newcode, v);
     }
-    return newcode;
+    newcode = oldcode;
+    return rescode;
 }
 
 class_kind.init0_post = function(ns, stage) {
@@ -100,6 +99,7 @@ class_kind.decl1_write_pre = function(ns) {
     setoutput("header");
     outfi("struct %s {\n", cnsname(ns));
     outindent(1);
+    outfi("zc_obj_t __zc;\n");
 }
 
 class_kind.decl1_write_post = function(ns) {
@@ -124,8 +124,8 @@ class_kind.inner = namespace_kind.inner;
 ctype_kind.vardecl_write = function(t, v) {
     outfi("%s %s;\n", t.target, v.name);
 }
-ctype_kind.localdecl_write = function(t, v) {
-    outfi("%s %s = 0;\n", t.target, v.name);
+ctype_kind.localdecl_write = function(t, v, inival) {
+    outfi("%s %s = %s;\n", t.target, v.name, inival or "0");
 }
 
 ctype_kind.paramdecl_write = function(t, v) {
@@ -139,8 +139,8 @@ ctype_kind.funcret_write = function(t, f, name) {
 class_kind.vardecl_write = function(t, v) {
     outfi("%s *%s;\n", cnsname(t), v.name);
 }
-class_kind.localdecl_write = function(t, v) {
-    outfi("%s *%s = NULL;\n", cnsname(t), v.name);
+class_kind.localdecl_write = function(t, v, inival) {
+    outfi("%s *%s = %s;\n", cnsname(t), v.name, inival or "NULL");
 }
 
 class_kind.paramdecl_write = function(t, v) {
@@ -359,14 +359,25 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
     if (!explicitowner) {
 	ns = o.owner;
 	v = ns.members[lookup];
-	// TODO look for static members first
-	while (!v && ns.owner && ns.members[thiz]) {
+	var thizchain = true;
+	while (!v && ns.owner) {
+	    if (!ns.members[thiz])
+		thizchain = false;
 	    var o2 = { target = thiz, type = ns, owner = o.owner };
 	    setkind(o2, memberref_kind);
 	    res = { o2, res };
 	    setkind(res, dot_kind);
 	    ns = ns.owner;
 	    v = ns.members[lookup];
+	    if (v) {
+		if (ns.kind == "namespace" || v.mods.static) {
+		    res = o;
+		    res.type = v.type;
+		    res.member = v;
+		    res.owner = ns;
+		} if (!thizchain)
+		    v = nil;
+	    }
 	}
 	return handle(res, stage, stage, o.owner, signature);
     }

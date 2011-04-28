@@ -214,8 +214,8 @@ operators = {
     ['='] = {
 	name = "assign",
 	cop = '=',
-	prio = 9.5,
-	prio2 = 9.4,
+	prio = 8.5,
+	prio2 = 8.4,
 	specialkind = assign_kind,
     },
     ['.'] = {
