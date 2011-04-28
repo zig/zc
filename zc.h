@@ -3,9 +3,16 @@
 #include <stdint.h>
 #include <limits.h>
 
-#define zc_objref(obj) obj
+typedef struct zc_obj_s zc_obj_t;
 
-#define zc_objunref(obj) obj
+struct zc_obj_s {
+  int refcount;
+};
+
+
+#define zc_objref(obj) (obj->__zc.refcount++, obj)
+inline _zc_objunref(void *ptr, zc_obj_t *m) { if ((--m->refcount) == 0) free(ptr); }
+#define zc_objunref(obj) (_zc_objunref(obj, &obj->zc), obj)
 
 
 #define zc_setglobal(g, v) (g = (v))

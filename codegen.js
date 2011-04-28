@@ -269,10 +269,9 @@ call_kind.code0_write = function(o, stage) {
 }
 
 var assigners = {
-    memberref = memberset_kind,
     globalref = globalset_kind,
     localref = localset_kind,
-}
+};
 assign_kind.ana0 = function(o, stage) {
     o[1] = handle(o[1], stage);
     o[2] = handle(o[2], stage);
