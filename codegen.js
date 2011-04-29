@@ -64,6 +64,7 @@ function ref(expr) {
 	expr,
 	type = expr.type,
 	member = expr.member,
+	referenced = 1,
     }
     setkind(ref, ref_kind);
     return ref;
@@ -143,13 +144,15 @@ function handle(obj, stage, newstage, ...) {
 	gotopos(obj.source); // only so that emiterror point to correct position
     if (obj[stage]) {
 	res = { obj[stage](obj, newstage || stage, ...) };
-	/*if (obj.default_handlers && #res == 0)
-	    res = { obj };*/
-    }/* else if (obj.default_handlers) {
+	if (obj.default_handlers && #res == 0)
+	    res = { obj };
+    } else if (obj.default_handlers) {
 	for (i, v in ipairs(obj))
 	    obj[i] = handle(v, stage);
 	res = { obj };
-    }*/
+	if (obj.kind == "memberget")
+	    print(stage, res, res[1], obj.default_handlers, obj.ana0);
+    }
     gotopos(pos);
     return unpack(res or {});
 }
@@ -569,8 +572,11 @@ unref_kind.code0_write = function(o, stage) {
     return format("zc_objunref(%s, %s)", cnsname(o.type), handle(o[1], stage));
 }
 
+memberget_kind.ana0 = function(o, stage) {
+    return o;
+}
 memberget_kind.ana1 = function(o, stage) {
-    print("hello world!!");
+    o[1] = handle(o[1], stage);
     if (o.member.kind == "func"/* || !needunref(o[1])*/)
 	return o;
     o[1] = newtmp(o[1]);
@@ -582,6 +588,9 @@ memberget_kind.code0_write = function(o, stage) {
     return string.format("zc_getmember(%s, %s)", handle(o[1], stage), o.target);
 }
 memberset_kind.ana0 = function(o, stage) {
+    return o;
+}
+memberset_kind.ana1 = function(o, stage) {
     if (o.type.kind != "class")
 	return o;
     o[1] = newtmp(o[1]);
@@ -616,6 +625,9 @@ localget_kind.code0_write = function(o, stage) {
     return string.format("%s", o.target);
 }
 localset_kind.ana0 = function(o, stage) {
+    return o;
+}
+localset_kind.ana1 = function(o, stage) {
     if (o.type.kind != "class")
 	return o;
     o[1] = newtmp(ref(o[1]));
@@ -678,7 +690,7 @@ function codegen() {
     for (_, stage in ipairs { 
 	"init0", 
 	"ana0", 
-	//"ana1", 
+	"ana1", 
 	"decl0_write", 
 	"decl1_write", 
 	"decl2_write", 
