@@ -146,7 +146,7 @@ unref_kind = {
 
 memberref_kind = {
     kind = "memberref",
-    default_handlers = 1,
+    //default_handlers = 1,
 };
 
 memberget_kind = {

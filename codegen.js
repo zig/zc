@@ -7,13 +7,6 @@ function newtmpname() {
     return string.format("__tmp%d__", tmpnum);
 }
 
-function followmember(expr) {
-    var res = expr.member;
-    while (res && res.member)
-	res = res.member;
-    return res;
-}
-
 function newtmp(expr) {
     if (!expr.type)
 	return expr;
@@ -86,6 +79,8 @@ function addexpr(expr) {
 	return;
     var expr = {
 	expr,
+	info = debug.getinfo(2),
+	info2 = debug.getinfo(3),
     }
     setkind(expr, expr_kind);
     table.insert(newcode, expr);
@@ -144,14 +139,13 @@ function handle(obj, stage, newstage, ...) {
 	gotopos(obj.source); // only so that emiterror point to correct position
     if (obj[stage]) {
 	res = { obj[stage](obj, newstage || stage, ...) };
-	if (obj.default_handlers && #res == 0)
-	    res = { obj };
-    } else if (obj.default_handlers) {
-	for (i, v in ipairs(obj))
+	/*if (obj.default_handlers && #res == 0)
+	    res = { obj }; */
+    } else if (0 && stage == "ana1" && obj.default_handlers) {
+	for (i, v in ipairs(obj)) {
 	    obj[i] = handle(v, stage);
+	}
 	res = { obj };
-	if (obj.kind == "memberget")
-	    print(stage, res, res[1], obj.default_handlers, obj.ana0);
     }
     gotopos(pos);
     return unpack(res or {});
@@ -367,7 +361,7 @@ call_kind.ana0 = function(o, stage) {
 	o[i] = handle(p, stage);
 
     var thiz = handle(o.func, stage, stage, nil, o);
-    o.func = followmember(thiz);
+    o.func = thiz.member;
     if (!o.func || o.func.kind != "func") {
 	// TODO look for an 'invoke' operator
 	emiterror("trying to call something that is not callable");
@@ -478,6 +472,7 @@ dot_kind.ana0 = function(o, stage, owner, signature) {
     table.remove(o, 2);
     setkind(o, memberget_kind);
 
+    //return o;
     return handle(o, stage);
 }
 
@@ -575,9 +570,9 @@ unref_kind.code0_write = function(o, stage) {
 memberget_kind.ana0 = function(o, stage) {
     return o;
 }
-memberget_kind.ana1 = function(o, stage) {
-    o[1] = handle(o[1], stage);
-    if (o.member.kind == "func"/* || !needunref(o[1])*/)
+memberget_kind.ana0 = function(o, stage) {
+    //o[1] = handle(o[1], stage);
+    if (o.member && o.member.kind == "func" || !needunref(o[1]))
 	return o;
     o[1] = newtmp(o[1]);
     var t = newtmp(o);
@@ -588,28 +583,32 @@ memberget_kind.code0_write = function(o, stage) {
     return string.format("zc_getmember(%s, %s)", handle(o[1], stage), o.target);
 }
 memberset_kind.ana0 = function(o, stage) {
-    return o;
-}
-memberset_kind.ana1 = function(o, stage) {
     if (o.type.kind != "class")
 	return o;
     o[1] = newtmp(o[1]);
-    o[2] = newtmp(o[2]);
+    o[2] = newtmp(ref(o[2]));
     var get = {
 	o[1],
 	target = o.target,
 	type = o.type,
+	referenced = 1,
     };
     setkind(get, memberget_kind);
-    addexpr(unref(o[1]));
     addexpr(unref(get));
-    addexpr(ref(o[2]));
-    return o;
+    if (needunref(o[1])) {
+	var t = newtmp(o);
+	addexpr(unref(o[1]));
+	return t;
+    } else
+	return o;
 }
 memberset_kind.code0_write = function(o, stage) {
     return format("zc_setmember(%s, %s, %s)", handle(o[1], stage), o.target, handle(o[2], stage));
 }
 
+globalget_kind.ana0 = function(o, stage) { 
+    return o;
+}
 globalget_kind.code0_write = function(o, stage) { 
     return string.format("zc_getglobal(%s)", o.target);
 }
@@ -621,13 +620,13 @@ globalset_kind.code0_write = function(o, stage) {
     return format("zc_setglobal(%s, %s)", o.target, handle(o[1], stage));
 }
 
+localget_kind.ana0 = function(o, stage) {
+    return o;
+}
 localget_kind.code0_write = function(o, stage) { 
     return string.format("%s", o.target);
 }
 localset_kind.ana0 = function(o, stage) {
-    return o;
-}
-localset_kind.ana1 = function(o, stage) {
     if (o.type.kind != "class")
 	return o;
     o[1] = newtmp(ref(o[1]));
@@ -664,7 +663,13 @@ expr_kind.ana0 = function(o, stage) {
     return o;
 }
 expr_kind.code0_write = function(o, stage) {
-    outfi("%s;\n", handle(o[1], stage));
+    outfi("%s;\t/* %s (%d)  %s (%d) */\n",
+	  handle(o[1], stage),
+	  (o.info && o.info.source) || "?", 
+	  (o.info && o.info.currentline) || -1,
+	  (o.info2 && o.info2.source) || "?", 
+	  (o.info2 && o.info2.currentline) || -1
+	 );
 }
 
 
@@ -690,7 +695,7 @@ function codegen() {
     for (_, stage in ipairs { 
 	"init0", 
 	"ana0", 
-	"ana1", 
+	//"ana1", 
 	"decl0_write", 
 	"decl1_write", 
 	"decl2_write", 
