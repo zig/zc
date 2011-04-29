@@ -139,11 +139,12 @@ function handle(obj, stage, newstage, ...) {
 	gotopos(obj.source); // only so that emiterror point to correct position
     if (obj[stage]) {
 	res = { obj[stage](obj, newstage || stage, ...) };
-	/*if (obj.default_handlers && #res == 0)
-	    res = { obj }; */
-    } else if (0 && stage == "ana1" && obj.default_handlers) {
+	if (obj.default_handlers && #res == 0)
+	    res = { obj };
+    } else if (obj.default_handlers) {
 	for (i, v in ipairs(obj)) {
-	    obj[i] = handle(v, stage);
+	    if (v.default_handlers)
+		obj[i] = handle(v, stage);
 	}
 	res = { obj };
     }
@@ -660,16 +661,16 @@ return_kind.code0_write = function(o, stage) {
 expr_kind.ana0 = function(o, stage) {
     o[1] = unref(handle(o[1], stage));
     table.insert(newcode, o[1]);
-    return o;
 }
 expr_kind.code0_write = function(o, stage) {
-    outfi("%s;\t/* %s (%d)  %s (%d) */\n",
-	  handle(o[1], stage),
-	  (o.info && o.info.source) || "?", 
-	  (o.info && o.info.currentline) || -1,
-	  (o.info2 && o.info2.source) || "?", 
-	  (o.info2 && o.info2.currentline) || -1
-	 );
+    outfi("%s;\n", handle(o[1], stage));
+//    outfi("%s;\t/* %s (%d)  %s (%d) */\n",
+//	  handle(o[1], stage),
+//	  (o.info && o.info.source) || "?", 
+//	  (o.info && o.info.currentline) || -1,
+//	  (o.info2 && o.info2.source) || "?", 
+//	  (o.info2 && o.info2.currentline) || -1
+//	 );
 }
 
 
@@ -695,7 +696,7 @@ function codegen() {
     for (_, stage in ipairs { 
 	"init0", 
 	"ana0", 
-	//"ana1", 
+	"ana1", 
 	"decl0_write", 
 	"decl1_write", 
 	"decl2_write", 
