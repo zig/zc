@@ -73,7 +73,7 @@ int takeobj(test_t in) {
 }
 
 float main() {
-    test_t test/* = new test_t()*/;
+    test_t test;
 
     int a, b;
     a = b = global_func();

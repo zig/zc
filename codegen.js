@@ -13,12 +13,13 @@ function newtmp(expr) {
     var v = {
 	name = name,
 	type = expr.type,
+	tmpvar = 1,
     };
     setkind(v, var_kind);
     setmember(v, expr.owner);
 
     var def = {
-	ref(expr),
+	expr,
 	target = name,
 	member = v,
 	type = v.type,
@@ -43,6 +44,7 @@ function ref(expr) {
     var ref = {
 	expr,
 	type = expr.type,
+	member = expr.member,
     }
     setkind(ref, ref_kind);
     return ref;
@@ -54,11 +56,15 @@ function unref(expr) {
     var unref = {
 	expr,
 	type = expr.type,
+	member = expr.member,
     }
     setkind(unref, unref_kind);
     return unref;
 }
 function addexpr(expr) {
+    if (get2set_table[expr.kind])
+	/* it's just a getter, do nothing as it's dead code */
+	return;
     var expr = {
 	expr,
     }
@@ -284,6 +290,9 @@ func_kind.code0_write = function(f, stage) {
 	    v.type.localdecl_write(v.type, v);
     handle_code(f.code, stage);
     outfi("__destructors:\n");
+    for (i, v in pairs(f.members)) 
+	if (v.type.kind == "class" && !v.tmpvar)
+	    outfi("zc_objunref(%s, %s);\n", cnsname(v.type), v.name);
     outfi("return __result;\n");
     popnamespace(f);
     outindent(-1);
@@ -317,6 +326,8 @@ call_kind.ana0 = function(o, stage) {
     o.type = o.func.rettype;
     if (o.func.is_method)
 	table.insert(o, 1, thiz);
+    for (i, p in ipairs(o))
+	o[i] = ref(p);
     o.referenced = 1;
     return o;
 }
@@ -331,7 +342,7 @@ call_kind.code0_write = function(o, stage) {
     return cfuncname(o.func).."("..params..")";
 }
 
-var get2set_table = {
+get2set_table = {
     memberget = memberset_kind,
     globalget = globalset_kind,
     localget = localset_kind,
@@ -345,7 +356,7 @@ function get2set(r, expr) {
     }
 }
 
-var set2get_table = {
+set2get_table = {
     memberset = memberget_kind,
     globalset = globalget_kind,
     localset = localget_kind,
@@ -401,6 +412,7 @@ dot_kind.ana0 = function(o, stage, owner, signature) {
     o.target = o[2].target;
     table.remove(o, 2);
     setkind(o, memberget_kind);
+    o[1] = unref(o[1]);
 
     return o;
 }
@@ -423,6 +435,8 @@ op_kind.ana0 = function(o, stage) {
     if (!m.intrinsic) {
 	/* morph to a normal call */
 	setkind(o, call_kind);
+	for (i, p in ipairs(o))
+	    o[i] = ref(p);
 	o.referenced = 1;
     }
 
@@ -490,25 +504,27 @@ tmpdef_kind.code0_write = function(o, stage) {
 }
 
 ref_kind.code0_write = function(o, stage) {
-    return format("zc_objref(%s)", handle(o[1], stage));
+    return format("zc_objref(%s, %s)", cnsname(o.type), handle(o[1], stage));
 }
 unref_kind.code0_write = function(o, stage) {
-    return format("zc_objunref(%s)", handle(o[1], stage));
+    return format("zc_objunref(%s, %s)", cnsname(o.type), handle(o[1], stage));
 }
 
 memberget_kind.code0_write = function(o, stage) { 
     return string.format("zc_getmember(%s, %s)", handle(o[1], stage), o.target);
 }
 memberset_kind.ana0 = function(o, stage) {
+    if (o.type.kind != "class")
+	return o;
     o[1] = newtmp(o[1]);
     o[2] = newtmp(o[2]);
     var get = {
 	o[1],
 	target = o.target,
 	type = o.type,
-	referenced = 1,
     };
     setkind(get, memberget_kind);
+    addexpr(unref(o[1]));
     addexpr(unref(get));
     addexpr(ref(o[2]));
     return o;
@@ -529,22 +545,22 @@ globalset_kind.code0_write = function(o, stage) {
 }
 
 localget_kind.code0_write = function(o, stage) { 
-    return string.format("zc_getlocal(%s)", o.target);
+    return string.format("%s", o.target);
 }
 localset_kind.ana0 = function(o, stage) {
-    o[1] = newtmp(o[1]);
+    if (o.type.kind != "class")
+	return o;
+    o[1] = newtmp(ref(o[1]));
     var get = {
 	target = o.target,
 	type = o.type,
-	referenced = 1,
     };
     setkind(get, localget_kind);
     addexpr(unref(get));
-    addexpr(ref(o[1]));
     return o;
 }
 localset_kind.code0_write = function(o, stage) {
-    return format("zc_setlocal(%s, %s)", o.target, handle(o[1], stage));
+    return format("%s = %s", o.target, handle(o[1], stage));
 }
 
 nil_kind.code0_write = function(o) {
@@ -567,7 +583,7 @@ expr_kind.ana0 = function(o, stage) {
     return o;
 }
 expr_kind.code0_write = function(o, stage) {
-    outfi("%s;\n", handle(o[1], stage));
+    outfi("%s;\n", unref(handle(o[1], stage)));
 }
 
 
