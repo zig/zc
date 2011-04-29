@@ -26,27 +26,34 @@ function newtmp(expr) {
     setkind(def, localset_kind);
     addexpr(def);
 
-    var ref = {
+    var get = {
 	target = name,
 	member = v,
 	type = v.type,
-	referenced = 1,
     };
-    setkind(ref, localref_kind);
+    setkind(get, localget_kind);
 
-    return ref;
+    return get;
 }
 
 function ref(expr) {
+    var type = expr.type;
+    if (!(type && type.kind == "class" && !expr.referenced))
+	return expr;
     var ref = {
 	expr,
+	type = expr.type,
     }
     setkind(ref, ref_kind);
     return ref;
 }
 function unref(expr) {
+    var type = expr.type;
+    if (!(type && type.kind == "class" && expr.referenced))
+	return expr;
     var unref = {
 	expr,
+	type = expr.type,
     }
     setkind(unref, unref_kind);
     return unref;
@@ -324,11 +331,33 @@ call_kind.code0_write = function(o, stage) {
     return cfuncname(o.func).."("..params..")";
 }
 
-var assigners = {
-    memberref = memberset_kind,
-    globalref = globalset_kind,
-    localref = localset_kind,
+var get2set_table = {
+    memberget = memberset_kind,
+    globalget = globalset_kind,
+    localget = localset_kind,
 };
+
+function get2set(r, expr) {
+    if (get2set_table[r.kind]) {
+	setkind(r, get2set_table[r.kind]);
+	table.insert(r, expr);
+	return r;
+    }
+}
+
+var set2get_table = {
+    memberset = memberget_kind,
+    globalset = globalget_kind,
+    localset = localget_kind,
+};
+function set2get(r) {
+    if (get2set_table[r.kind]) {
+	setkind(r, get2set_table[r.kind]);
+	var expr = table.remove(r);
+	return r, expr;
+    }
+}
+
 assign_kind.ana0 = function(o, stage) {
     o[1] = handle(o[1], stage);
     o[2] = handle(o[2], stage);
@@ -341,15 +370,13 @@ assign_kind.ana0 = function(o, stage) {
 
     o.type = o[2].type;
 
-    var r = o[1];
-    if (assigners[r.kind]) {
-	setkind(r, assigners[r.kind]);
-	table.insert(r, o[2]);
+    var r = get2set(o[1], o[2]);
+    if (r)
 	return handle(r, stage);
-    } else
+    else {
 	emiterror("lvalue expected");
-
-    return o;
+	return o;
+    }
 }
 
 new_kind.ana0 = function(o, stage) {
@@ -373,12 +400,9 @@ dot_kind.ana0 = function(o, stage, owner, signature) {
 
     o.target = o[2].target;
     table.remove(o, 2);
-    setkind(o, memberref_kind);
+    setkind(o, memberget_kind);
 
     return o;
-}
-dot_kind.code0_write = function(o, stage, owner, signature) {
-    return string.format("zc_getmember(%s, %s)", handle(o[1], stage), o.target);
 }
 
 op_kind.ana0 = function(o, stage) {
@@ -439,15 +463,15 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
 		    v = nil;
 	    }
 	}
-	return handle(res, stage, stage, o.owner, signature);
+	return handle(res, stage, stage, res.owner, signature);
     }
     v = ns.members[lookup];
     if (v) {
 	if (ns.kind == "namespace" || v.mods.static) {
 	    res = o;
-	    setkind(o, globalref_kind);
+	    setkind(o, globalget_kind);
 	} else if (explicitowner == o.owner)
-	    setkind(o, localref_kind);
+	    setkind(o, localget_kind);
 	res.member = v;
 	res.type = v.type;
     } else if (ns.kind == "class")
@@ -455,9 +479,6 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
     else
 	emiterror("unknown identifier "..o.target);
     return res;
-}
-memberref_kind.code0_write = function(o, stage, explicitowner, signature) { 
-    return string.format("zc_getmember(%s, %s)", handle(o[1], stage), o.target);
 }
 
 tmpdef_kind.code0_write = function(o, stage) {
@@ -469,22 +490,15 @@ tmpdef_kind.code0_write = function(o, stage) {
 }
 
 ref_kind.code0_write = function(o, stage) {
-    var type = o[1].type;
-    var r = handle(o[1], stage);
-    if (type && type.kind == "class" && !o[1].referenced)
-	return format("zc_objref(%s)", r);
-    else
-	return r;
+    return format("zc_objref(%s)", handle(o[1], stage));
 }
 unref_kind.code0_write = function(o, stage) {
-    var type = o[1].type;
-    var r = handle(o[1], stage);
-    if (type && type.kind == "class" && o[1].referenced)
-	return format("zc_objunref(%s)", r);
-    else
-	return r;
+    return format("zc_objunref(%s)", handle(o[1], stage));
 }
 
+memberget_kind.code0_write = function(o, stage) { 
+    return string.format("zc_getmember(%s, %s)", handle(o[1], stage), o.target);
+}
 memberset_kind.ana0 = function(o, stage) {
     o[1] = newtmp(o[1]);
     o[2] = newtmp(o[2]);
@@ -494,7 +508,7 @@ memberset_kind.ana0 = function(o, stage) {
 	type = o.type,
 	referenced = 1,
     };
-    setkind(get, dot_kind);
+    setkind(get, memberget_kind);
     addexpr(unref(get));
     addexpr(ref(o[2]));
     return o;
@@ -503,7 +517,7 @@ memberset_kind.code0_write = function(o, stage) {
     return format("zc_setmember(%s, %s, %s)", handle(o[1], stage), o.target, handle(o[2], stage));
 }
 
-globalref_kind.code0_write = function(o, stage, explicitowner, signature) { 
+globalget_kind.code0_write = function(o, stage) { 
     return string.format("zc_getglobal(%s)", o.target);
 }
 globalset_kind.ana0 = function(o, stage) {
@@ -514,7 +528,7 @@ globalset_kind.code0_write = function(o, stage) {
     return format("zc_setglobal(%s, %s)", o.target, handle(o[1], stage));
 }
 
-localref_kind.code0_write = function(o, stage, explicitowner, signature) { 
+localget_kind.code0_write = function(o, stage) { 
     return string.format("zc_getlocal(%s)", o.target);
 }
 localset_kind.ana0 = function(o, stage) {
@@ -524,7 +538,7 @@ localset_kind.ana0 = function(o, stage) {
 	type = o.type,
 	referenced = 1,
     };
-    setkind(get, localref_kind);
+    setkind(get, localget_kind);
     addexpr(unref(get));
     addexpr(ref(o[1]));
     return o;
@@ -538,9 +552,7 @@ nil_kind.code0_write = function(o) {
 }
  
 return_kind.ana0 = function(o, stage) {
-    o[1] = handle(o[1], stage);
-    o[1] = newtmp(o[1]);
-    addexpr(ref(o[1]));
+    o[1] = ref(handle(o[1], stage));
     if (o[1].type != o.owner.rettype)
 	emiterror("incompatible returned type");
     return o;

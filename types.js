@@ -133,17 +133,21 @@ unref_kind = {
 memberref_kind = {
     kind = "memberref",
 };
+
+memberget_kind = {
+    kind = "memberget",
+};
 memberset_kind = {
     kind = "memberset",
 };
-globalref_kind = {
-    kind = "globalref",
+globalget_kind = {
+    kind = "globalget",
 };
 globalset_kind = {
     kind = "globalset",
 };
-localref_kind = {
-    kind = "localref",
+localget_kind = {
+    kind = "localget",
 };
 localset_kind = {
     kind = "localset",
