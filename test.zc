@@ -61,6 +61,17 @@ int global_func() {
     return 42;
 }
 
+test_t passobj(test_t in) {
+    return in;
+}
+
+test_t newobj() {
+    return new test_t;
+}
+
+int takeobj(test_t in) {
+}
+
 float main() {
     test_t test/* = new test_t()*/;
 

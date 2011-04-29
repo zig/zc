@@ -120,6 +120,16 @@ string_kind = {
     kind = "string",
 };
 
+tmpdef_kind = {
+    kind = "tmpdef",
+};
+ref_kind = {
+    kind = "ref",
+};
+unref_kind = {
+    kind = "unref",
+};
+
 memberref_kind = {
     kind = "memberref",
 };
