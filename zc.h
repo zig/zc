@@ -13,8 +13,8 @@ struct zc_obj_s {
 
 static inline void *_zc_objref(zc_obj_t *m, const char *file, const char *function, int line) 
 { 
-  /* if (m) */
-  /*   printf("%s %d: ref %d\n", function, line, m->refcount); */
+  if (m)
+    printf("%s %d: ref %d -> %d\n", function, line, m->refcount, m->refcount + 1);
   if (m)
     m->refcount++;
   return m;
@@ -22,8 +22,8 @@ static inline void *_zc_objref(zc_obj_t *m, const char *file, const char *functi
 #define zc_objref(type, obj) ((type *) _zc_objref((zc_obj_t *) (obj), __FILE__, __FUNCTION__, __LINE__))
 static inline void *_zc_objunref(zc_obj_t *m, const char *file, const char *function, int line) 
 { 
-  /* if (m) */
-  /*   printf("%s %d: unref %d\n", function, line, m->refcount); */
+  if (m)
+    printf("%s %d: unref %d -> %d\n", function, line, m->refcount, m->refcount - 1);
   if (m && (--m->refcount) == 0) 
     free(m); 
   return m;

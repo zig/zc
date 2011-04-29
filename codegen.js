@@ -7,13 +7,24 @@ function newtmpname() {
     return string.format("__tmp%d__", tmpnum);
 }
 
+function followmember(expr) {
+    var res = expr.member;
+    while (res && res.member)
+	res = res.member;
+    return res;
+}
+
 function newtmp(expr) {
+    if (!expr.type)
+	return expr;
+
     var name = newtmpname();
 
     var v = {
 	name = name,
 	type = expr.type,
 	tmpvar = 1,
+	member = expr.member,
     };
     setkind(v, var_kind);
     setmember(v, expr.owner);
@@ -31,15 +42,23 @@ function newtmp(expr) {
 	target = name,
 	member = v,
 	type = v.type,
+	referenced = expr.referenced,
     };
     setkind(get, localget_kind);
 
     return get;
 }
 
-function ref(expr) {
+function needref(expr) {
     var type = expr.type;
-    if (!(type && type.kind == "class" && !expr.referenced))
+    return type && type.kind == "class" && !expr.referenced;
+}
+function needunref(expr) {
+    var type = expr.type;
+    return type && type.kind == "class" && expr.referenced;
+}
+function ref(expr) {
+    if (!needref(expr))
 	return expr;
     var ref = {
 	expr,
@@ -50,8 +69,7 @@ function ref(expr) {
     return ref;
 }
 function unref(expr) {
-    var type = expr.type;
-    if (!(type && type.kind == "class" && expr.referenced))
+    if (!needunref(expr))
 	return expr;
     var unref = {
 	expr,
@@ -123,17 +141,32 @@ function handle(obj, stage, newstage, ...) {
     var res;
     if (obj.source)
 	gotopos(obj.source); // only so that emiterror point to correct position
-    if (obj[stage])
+    if (obj[stage]) {
 	res = { obj[stage](obj, newstage || stage, ...) };
+	/*if (obj.default_handlers && #res == 0)
+	    res = { obj };*/
+    }/* else if (obj.default_handlers) {
+	for (i, v in ipairs(obj))
+	    obj[i] = handle(v, stage);
+	res = { obj };
+    }*/
     gotopos(pos);
     return unpack(res or {});
 }
 
-function handle_code(code, stage) {
+function handle_code(code, stage, pos) {
     var uppercode = newcode;
     newcode = { };
     var rescode = newcode;
     for (i, s in ipairs(code)) {
+	if (false && pos && s.source) {
+	    out("\t/* ");
+	    while (s.source && pos < s.source.pos) {
+		outf("%s ", s.source.source.tokens[pos - 1]);
+		pos++;
+	    }
+	    out("*/\n");
+	}
 	var o = handle(s, stage);
 	if (type(o) != "table") // temp hack
 	    table.insert(newcode, s);
@@ -254,6 +287,11 @@ func_kind.ana0 = function(f, stage) {
     f.code = handle_code(f.code, stage);
     popnamespace(f);
 }
+func_kind.ana1 = function(f, stage) {
+    pushnamespace(f);
+    f.code = handle_code(f.code, stage);
+    popnamespace(f);
+}
 
 function funcdecl(f) {
     f.rettype.funcret_write(f.rettype, f, cfuncname(f));
@@ -285,10 +323,13 @@ func_kind.code0_write = function(f, stage) {
     outindent(1);
     pushnamespace(f);
     f.rettype.localdecl_write(f.rettype, { name = "__result" });
-    for (i, v in pairs(f.members))
+    for (i, v in pairs(f.members)) {
 	if (!v.param_index)
 	    v.type.localdecl_write(v.type, v);
-    handle_code(f.code, stage);
+	else if (v.type.kind == "class")
+	    outfi("zc_objref(%s, %s);\n", cnsname(v.type), v.name);
+    }
+    handle_code(f.code, stage, f.source.pos);
     outfi("__destructors:\n");
     for (i, v in pairs(f.members)) 
 	if (v.type.kind == "class" && !v.tmpvar)
@@ -311,12 +352,19 @@ number_kind.code0_write = function(o, stage) {
     return o.target;
 }
 
+null_kind.ana0 = function(o, stage) {
+    return o;
+}
+null_kind.code0_write = function(o, stage) {
+    return "NULL";
+}
+
 call_kind.ana0 = function(o, stage) {
     for (i, p in ipairs(o))
 	o[i] = handle(p, stage);
 
     var thiz = handle(o.func, stage, stage, nil, o);
-    o.func = thiz.member;
+    o.func = followmember(thiz);
     if (!o.func || o.func.kind != "func") {
 	// TODO look for an 'invoke' operator
 	emiterror("trying to call something that is not callable");
@@ -326,9 +374,22 @@ call_kind.ana0 = function(o, stage) {
     o.type = o.func.rettype;
     if (o.func.is_method)
 	table.insert(o, 1, thiz);
-    for (i, p in ipairs(o))
-	o[i] = ref(p);
     o.referenced = 1;
+
+    var unrefs = { };
+    for (i, p in ipairs(o)) {
+	if (needunref(p)) {
+	    p = newtmp(p);
+	    table.insert(unrefs, p);
+	    o[i] = p;
+	}
+    }
+    if (#unrefs > 0) {
+	o = newtmp(o);
+	for (_, p in ipairs(unrefs))
+	    addexpr(unref(p));
+    }
+
     return o;
 }
 call_kind.code0_write = function(o, stage) {
@@ -376,10 +437,11 @@ assign_kind.ana0 = function(o, stage) {
     /*if (!o[1].member || o[1].member.kind != "var")
 	emiterror("lvalue expected");*/
 
-    if (o[1].type != o[2].type)
+    if (o[1].type != o[2].type && 
+	(o[1].type.kind != "class" || o[2].kind != "null"))
 	emiterror("incompatible types in assignement");
 
-    o.type = o[2].type;
+    o.type = o[1].type;
 
     var r = get2set(o[1], o[2]);
     if (r)
@@ -412,9 +474,8 @@ dot_kind.ana0 = function(o, stage, owner, signature) {
     o.target = o[2].target;
     table.remove(o, 2);
     setkind(o, memberget_kind);
-    o[1] = unref(o[1]);
 
-    return o;
+    return handle(o, stage);
 }
 
 op_kind.ana0 = function(o, stage) {
@@ -435,8 +496,6 @@ op_kind.ana0 = function(o, stage) {
     if (!m.intrinsic) {
 	/* morph to a normal call */
 	setkind(o, call_kind);
-	for (i, p in ipairs(o))
-	    o[i] = ref(p);
 	o.referenced = 1;
     }
 
@@ -510,6 +569,15 @@ unref_kind.code0_write = function(o, stage) {
     return format("zc_objunref(%s, %s)", cnsname(o.type), handle(o[1], stage));
 }
 
+memberget_kind.ana1 = function(o, stage) {
+    print("hello world!!");
+    if (o.member.kind == "func"/* || !needunref(o[1])*/)
+	return o;
+    o[1] = newtmp(o[1]);
+    var t = newtmp(o);
+    addexpr(unref(o[1]));
+    return t;
+}
 memberget_kind.code0_write = function(o, stage) { 
     return string.format("zc_getmember(%s, %s)", handle(o[1], stage), o.target);
 }
@@ -554,13 +622,14 @@ localset_kind.ana0 = function(o, stage) {
     var get = {
 	target = o.target,
 	type = o.type,
+	referenced = 1,
     };
     setkind(get, localget_kind);
     addexpr(unref(get));
     return o;
 }
 localset_kind.code0_write = function(o, stage) {
-    return format("%s = %s", o.target, handle(o[1], stage));
+    return format("(%s = %s)", o.target, handle(o[1], stage));
 }
 
 nil_kind.code0_write = function(o) {
@@ -578,12 +647,12 @@ return_kind.code0_write = function(o, stage) {
 }
 
 expr_kind.ana0 = function(o, stage) {
-    o[1] = handle(o[1], stage);
-    table.insert(newcode, unref(o[1]));
+    o[1] = unref(handle(o[1], stage));
+    table.insert(newcode, o[1]);
     return o;
 }
 expr_kind.code0_write = function(o, stage) {
-    outfi("%s;\n", unref(handle(o[1], stage)));
+    outfi("%s;\n", handle(o[1], stage));
 }
 
 
@@ -609,6 +678,7 @@ function codegen() {
     for (_, stage in ipairs { 
 	"init0", 
 	"ana0", 
+	//"ana1", 
 	"decl0_write", 
 	"decl1_write", 
 	"decl2_write", 

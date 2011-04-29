@@ -98,75 +98,100 @@ intrinsicfunc_kind = {
 
 return_kind = {
     kind = "return",
+    default_handlers = 1,
 };
 
 expr_kind = {
     kind = "expr",
+    default_handlers = 1,
 };
 
 op_kind = {
     kind = "op",
+    default_handlers = 1,
 };
 
 dot_kind = {
     kind = "dot",
+    default_handlers = 1,
+};
+
+null_kind = {
+    kind = "null",
+    default_handlers = 1,
 };
 
 number_kind = {
     kind = "number",
+    default_handlers = 1,
 };
 
 string_kind = {
     kind = "string",
+    default_handlers = 1,
 };
 
 tmpdef_kind = {
     kind = "tmpdef",
+    default_handlers = 1,
 };
 ref_kind = {
     kind = "ref",
+    default_handlers = 1,
 };
 unref_kind = {
     kind = "unref",
+    default_handlers = 1,
 };
 
 memberref_kind = {
     kind = "memberref",
+    default_handlers = 1,
 };
 
 memberget_kind = {
     kind = "memberget",
+    default_handlers = 1,
 };
 memberset_kind = {
     kind = "memberset",
+    default_handlers = 1,
 };
 globalget_kind = {
     kind = "globalget",
+    default_handlers = 1,
 };
 globalset_kind = {
     kind = "globalset",
+    default_handlers = 1,
 };
 localget_kind = {
     kind = "localget",
+    default_handlers = 1,
 };
 localset_kind = {
     kind = "localset",
+    default_handlers = 1,
 };
 
 call_kind = {
     kind = "call",
+    default_handlers = 1,
 };
 
 assign_kind = {
     kind = "assign",
+    default_handlers = 1,
 };
 
 new_kind = {
     kind = "new",
+    default_handlers = 1,
 };
 
 nil_kind = {
     kind = "nil",
+    default_handlers = 1,
 };
 
 

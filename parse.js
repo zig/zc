@@ -35,6 +35,11 @@ function processterm(token) {
 	};
 	setkind(res, string_kind);
 	token = gettoken();
+    } else if (token == "null") {
+	res = {
+	};
+	setkind(res, null_kind);
+	token = gettoken();
     } else if (token == "new") {
 	res = {
 	};
@@ -162,6 +167,7 @@ function processfunc(funcname, rettype, mods) {
 	types = {},
 	members = {},
 	mods = mods,
+	source = savepos();
     };
     setkind(func, func_kind);
     //setmember(func);

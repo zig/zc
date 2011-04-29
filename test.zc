@@ -46,6 +46,7 @@ class test_t {
 	b.titi = b.titi = 32;
 	//(x + y) = 2.5;
 	//3();
+	lala = new lolo_t;
 	this.lala.titi;
 	jolie().a;
 	//moche = 32; // bug !!
@@ -53,6 +54,7 @@ class test_t {
 	//moche;
 	lala.titi + this.lala.majoliemethode();
 	this + 3.5;
+	lala = null;
 	return (a + x / y + a) * x + (b.titi = 4) + b;
     }
 }
@@ -78,6 +80,10 @@ float main() {
     int a, b;
     a = b = global_func();
     test = new test_t;
+
+    passobj(test).toto(2, 3.6);
+    test = newobj();
+    takeobj(test);
 
     return test.toto(10, 3.5);
 }
