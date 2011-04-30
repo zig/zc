@@ -569,11 +569,13 @@ unref_kind.code0_write = function(o, stage) {
 }
 
 memberget_kind.ana0 = function(o, stage) {
+    // the default handler would reapply handle on o[1], 
+    // which was already done in the dot_kind handler !
     return o;
 }
-memberget_kind.ana0 = function(o, stage) {
-    //o[1] = handle(o[1], stage);
-    if (o.member && o.member.kind == "func" || !needunref(o[1]))
+memberget_kind.ana1 = function(o, stage) {
+    o[1] = handle(o[1], stage);
+    if (!needunref(o[1]))
 	return o;
     o[1] = newtmp(o[1]);
     var t = newtmp(o);
@@ -658,7 +660,7 @@ return_kind.code0_write = function(o, stage) {
     outfi("__result = %s; goto __destructors;\n", handle(o[1], stage));
 }
 
-expr_kind.ana0 = function(o, stage) {
+expr_kind.ana1 = function(o, stage) {
     o[1] = unref(handle(o[1], stage));
     table.insert(newcode, o[1]);
 }
