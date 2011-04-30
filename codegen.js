@@ -373,7 +373,9 @@ call_kind.ana0 = function(o, stage) {
     if (o.func.is_method)
 	table.insert(o, 1, thiz);
     o.referenced = 1;
-
+    return o;
+}
+call_kind.ana1 = function(o, stage) {
     var unrefs = { };
     for (i, p in ipairs(o)) {
 	if (needunref(p)) {
@@ -436,7 +438,7 @@ assign_kind.ana0 = function(o, stage) {
 	emiterror("lvalue expected");*/
 
     if (o[1].type != o[2].type && 
-	(o[1].type.kind != "class" || o[2].kind != "null"))
+	(!o[1].type || o[1].type.kind != "class" || o[2].kind != "null"))
 	emiterror("incompatible types in assignement");
 
     o.type = o[1].type;
@@ -616,7 +618,16 @@ globalget_kind.code0_write = function(o, stage) {
     return string.format("zc_getglobal(%s)", o.target);
 }
 globalset_kind.ana0 = function(o, stage) {
-    o[1] = newtmp(o[1]);
+    if (o.type.kind != "class")
+	return o;
+    o[1] = newtmp(ref(o[1]));
+    var get = {
+	target = o.target,
+	type = o.type,
+	referenced = 1,
+    };
+    setkind(get, set2get_table[o.kind]);
+    addexpr(unref(get));
     return o;
 }
 globalset_kind.code0_write = function(o, stage) {
@@ -629,19 +640,7 @@ localget_kind.ana0 = function(o, stage) {
 localget_kind.code0_write = function(o, stage) { 
     return string.format("%s", o.target);
 }
-localset_kind.ana0 = function(o, stage) {
-    if (o.type.kind != "class")
-	return o;
-    o[1] = newtmp(ref(o[1]));
-    var get = {
-	target = o.target,
-	type = o.type,
-	referenced = 1,
-    };
-    setkind(get, localget_kind);
-    addexpr(unref(get));
-    return o;
-}
+localset_kind.ana0 = globalset_kind.ana0;
 localset_kind.code0_write = function(o, stage) {
     return format("(%s = %s)", o.target, handle(o[1], stage));
 }
