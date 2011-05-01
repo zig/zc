@@ -479,8 +479,10 @@ new_kind.code0_write = function(o, stage) {
 }
 
 dot_kind.ana0 = function(o, stage, owner, signature) {
-    if (o[2].kind != "memberref")
+    if (o[2].kind != "memberref") {
 	emiterror("syntax error");
+	return o;
+    }
 
     o[1] = handle(o[1], stage, stage, owner);
     o[2] = handle(o[2], stage, stage, o[1].type, signature);
@@ -494,6 +496,9 @@ dot_kind.ana0 = function(o, stage, owner, signature) {
 
     //return o;
     return handle(o, stage);
+}
+dot_kind.code0_write = function(o, stage, owner, signature) {
+    return "";
 }
 
 op_kind.ana0 = function(o, stage) {
@@ -538,10 +543,12 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
 	while (!v && ns.owner) {
 	    if (!ns.members[thiz])
 		thizchain = false;
-	    var o2 = { target = thiz, type = ns, owner = o.owner };
-	    setkind(o2, memberref_kind);
-	    res = { o2, res };
-	    setkind(res, dot_kind);
+	    if (thizchain) {
+		var o2 = { target = thiz, type = ns, owner = o.owner };
+		setkind(o2, memberref_kind);
+		res = { o2, res };
+		setkind(res, dot_kind);
+	    }
 	    ns = ns.owner;
 	    v = ns.members[lookup];
 	    if (v) {
@@ -602,7 +609,7 @@ memberget_kind.ana1 = function(o, stage) {
     return t;
 }
 memberget_kind.code0_write = function(o, stage) { 
-    return string.format("zc_getmember(%s, %s)", handle(o[1], stage), o.target);
+    return string.format("(%s)->%s", handle(o[1], stage), o.target);
 }
 memberset_kind.ana0 = function(o, stage) {
     if (o.type.kind != "class")
@@ -625,14 +632,14 @@ memberset_kind.ana0 = function(o, stage) {
 	return o;
 }
 memberset_kind.code0_write = function(o, stage) {
-    return format("zc_setmember(%s, %s, %s)", handle(o[1], stage), o.target, handle(o[2], stage));
+    return format("((%s)->%s = %s)", handle(o[1], stage), o.target, handle(o[2], stage));
 }
 
 globalget_kind.ana0 = function(o, stage) { 
     return o;
 }
 globalget_kind.code0_write = function(o, stage) { 
-    return string.format("zc_getglobal(%s)", o.target);
+    return string.format("%s", o.target);
 }
 globalset_kind.ana0 = function(o, stage) {
     if (o.type.kind != "class")
@@ -648,7 +655,7 @@ globalset_kind.ana0 = function(o, stage) {
     return o;
 }
 globalset_kind.code0_write = function(o, stage) {
-    return format("zc_setglobal(%s, %s)", o.target, handle(o[1], stage));
+    return format("(%s = %s)", o.target, handle(o[1], stage));
 }
 
 localget_kind.ana0 = function(o, stage) {
