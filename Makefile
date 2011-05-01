@@ -1,19 +1,18 @@
 
-.SUFFIXES: .lua .js .c .out .h
+.SUFFIXES: .lua .js .c .out .h .zc
 
-ZC_SOURCES=zc.lua parse.lua codegen.lua types.lua
+ZC_FILES=zc.lua parse.lua codegen.lua types.lua
 
 all:	zc
 
-zc:	$(ZC_SOURCES)
+.PHONY:	zc
+zc:	$(ZC_FILES)
 
-test:	zc a.out
+%:	%.c %.h zc.h
+	gcc -g -I. $< -o $@
 
-a.out:	a.c a.h zc.h
-	gcc -g -I. a.c
-
-a.c a.h: test.zc $(ZC_SOURCES)
-	lua zc.lua -v test.zc
+%.c %.h: %.zc $(ZC_FILES)
+	lua zc.lua -v $<
 
 .js.lua:
 	jslua.lua $< -o $@

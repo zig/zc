@@ -411,6 +411,12 @@ function loadmodule(name, ns) {
 	return table;
 }
 
+function strip_ext(fn) {
+    fn = string.gsub(fn.."\0", "[.][^.]*\0", "");
+    fn = string.gsub(fn, "\0", "");
+    return fn;
+}
+
 
 function zc(f) {
 
@@ -418,6 +424,12 @@ function zc(f) {
 	num_error = 0;
   
 	var filename = f || "stdin";
+
+	modulename = strip_ext(filename);
+	newoutput("header", modulename..".h");
+	newoutput("code", modulename..".c");
+	setoutput("code");
+
 	message ("Reading from "..filename);
 	var source = opensource(f, filename);
   
@@ -489,11 +501,8 @@ function writeoutputs() {
 	var f = io.open(o.filename, "w");
 	f:write(collapse(o));
     }
+    outputs = { };
 }
-
-newoutput("header", "a.h");
-newoutput("code", "a.c");
-setoutput("code");
 
 function out(s) {
     s = string.gsub(s, "\t", output.curindent);

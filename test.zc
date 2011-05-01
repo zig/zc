@@ -54,7 +54,7 @@ class test_t {
 	//moche;
 	lala.titi + this.lala.majoliemethode();
 	this + 3.5;
-	lala = null;
+	//lala = null;
 	return (a + x / y + a) * x + (b.titi = 4) + b;
     }
 }
@@ -68,7 +68,10 @@ test_t passobj(test_t in) {
 }
 
 test_t newobj() {
-    return new test_t;
+    test_t test;
+    test = new test_t;
+    test.a = 42;
+    return test;
 }
 
 int takeobj(test_t in) {
@@ -88,4 +91,5 @@ float main() {
     //null = 42;
 
     return test.toto(10, 3.5);
+    //return newobj().a;
 }

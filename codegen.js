@@ -136,7 +136,7 @@ function handle(obj, stage, newstage, ...) {
     var pos = savepos();
     var res;
     if (obj.source)
-	gotopos(obj.source); // only so that emiterror point to correct position
+	gotopos(obj.source); // so that emiterror point to correct position
     if (obj[stage]) {
 	res = { obj[stage](obj, newstage || stage, ...) };
 	if (obj.default_handlers && #res == 0)
@@ -204,6 +204,17 @@ class_kind.decl1_write_post = function(ns) {
     outfi("};\n");
 }
 
+class_kind.code0_write = function(ns) {
+    setoutput("code");
+    outfi("%s__destructor(%s *this) {\n", cnsname(ns), cnsname(ns));
+    outindent(1);
+    for (i, v in pairs(ns.members))
+	if (v.type && v.type.member_destructor_write)
+	    v.type.member_destructor_write(v.type, v);
+    outindent(-1);
+    outfi("};\n");
+}
+
 namespace_kind.pre = function(ns, stage) {
     for (i, k in pairs(ns.types))
 	dostage(k, stage);
@@ -245,6 +256,12 @@ class_kind.paramdecl_write = function(t, v) {
 
 class_kind.funcret_write = function(t, f, name) {
     outfi("%s *%s", cnsname(t), name);
+}
+class_kind.local_destructor_write = function(t, v) {
+    outfi("zc_objunref(%s, %s);\n", cnsname(t), v.name);
+}
+class_kind.member_destructor_write = function(t, v) {
+    outfi("zc_objunref(%s, this->%s);\n", cnsname(t), v.name);
 }
 
 var_kind.init0 = resolve_type;
@@ -329,9 +346,9 @@ func_kind.code0_write = function(f, stage) {
     }
     handle_code(f.code, stage, f.source.pos);
     outfi("__destructors:\n");
-    for (i, v in pairs(f.members)) 
-	if (v.type.kind == "class" && !v.tmpvar)
-	    outfi("zc_objunref(%s, %s);\n", cnsname(v.type), v.name);
+    for (i, v in pairs(f.members))
+	if (!v.tmpvar && v.type && v.type.local_destructor_write)
+	    v.type.local_destructor_write(v.type, v);
     outfi("return __result;\n");
     popnamespace(f);
     outindent(-1);
@@ -692,7 +709,7 @@ function codegen() {
     setoutput("header");
     out('#include <zc.h>\n\n');
     setoutput("code");
-    out('#include "a.h"\n\n');
+    outfi('#include "%s.h"\n\n', modulename);
 
     for (_, stage in ipairs { 
 	"init0", 
