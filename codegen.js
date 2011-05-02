@@ -11,6 +11,14 @@ function newtmp(expr) {
     if (!expr.type)
 	return expr;
 
+    if (expr.type == gettype("void")) {
+	addexpr(expr);
+	var v = {
+	    type = gettype("void");
+	};
+	return v;
+    }
+
     var name = newtmpname();
 
     var v = {
@@ -36,6 +44,17 @@ function newtmp(expr) {
 	member = v,
 	type = v.type,
 	referenced = expr.referenced,
+    };
+    setkind(get, localget_kind);
+
+    return get;
+}
+function cptmp(tmp) {
+    var get = {
+	target = tmp.target,
+	member = tmp.member,
+	type = tmp.type,
+	referenced = tmp.referenced,
     };
     setkind(get, localget_kind);
 
@@ -337,7 +356,8 @@ func_kind.code0_write = function(f, stage) {
     out("\n\t{\n");
     outindent(1);
     pushnamespace(f);
-    f.rettype.localdecl_write(f.rettype, { name = "__result" });
+    if (f.rettype != gettype("void"))
+	f.rettype.localdecl_write(f.rettype, { name = "__result" });
     for (i, v in pairs(f.members)) {
 	if (!v.param_index)
 	    v.type.localdecl_write(v.type, v);
@@ -349,7 +369,8 @@ func_kind.code0_write = function(f, stage) {
     for (i, v in pairs(f.members))
 	if (!v.tmpvar && v.type && v.type.local_destructor_write)
 	    v.type.local_destructor_write(v.type, v);
-    outfi("return __result;\n");
+    if (f.rettype != gettype("void"))
+	outfi("return __result;\n");
     popnamespace(f);
     outindent(-1);
     outfi("}\n");
@@ -375,26 +396,51 @@ null_kind.code0_write = function(o, stage) {
 }
 
 call_kind.ana0 = function(o, stage) {
+    var constructor;
+
     for (i, p in ipairs(o))
 	o[i] = handle(p, stage);
 
     var thiz = handle(o.func, stage, stage, nil, o, true);
-    o.func = thiz.member;
+
+    if (thiz.kind == "type") {
+	// cast / constructor
+	var lookup = "__init"..paramssuffix(o);
+	var type = thiz.type;
+	thiz = {
+	    type = type,
+	};
+	setkind(thiz, new_kind);
+	constructor = 1;
+	o.func = type.members[lookup];
+	if (!o.func)
+	    return thiz;
+	thiz = newtmp(thiz);
+	constructor = cptmp(thiz);
+	constructor.referenced = true;
+    } else {
+	o.func = thiz.member;
+	thiz = thiz[1];
+    }
     if (!o.func || o.func.kind != "func") {
 	// TODO look for an 'invoke' operator
 	emiterror("trying to call something that is not callable");
 	return o;
     }
     o.type = o.func.rettype;
-    thiz = thiz[1];
     if (o.func.is_method) {
 	if (!thiz || !thiz.type || thiz.type.kind != "class")
 	    emiterror("trying to call non static method without an object");
 	else
 	    table.insert(o, 1, thiz);
     }
-    o.referenced = 1;
-    return o;
+    o.referenced = true;
+
+    if (constructor) {
+	addexpr(o);
+	return constructor;
+    } else
+	return o;
 }
 call_kind.ana1 = function(o, stage) {
     var unrefs = { };

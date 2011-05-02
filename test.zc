@@ -8,9 +8,17 @@ class test_t {
 	    return 332;
 	}
     }
-    
+
+    static int boulga;
     int a;
     lolo_t lala;
+
+    void __init() {
+	a = 42;
+    }
+    void __init(int pa) {
+	a = pa;
+    }
 
     test_t jolie() {
 	return this;
@@ -94,9 +102,11 @@ float main() {
     //null = 42;
 
     test_t.lolo_t.gloubi();
-    //test_t = 32;
+    test.lolo_t.gloubi();
+    //test_t.boulga = 32;
 
-    test.a = 0;
+    test = test_t();
+    test = test_t(10);
     return test.toto(10, 3.5);
     //return newobj().a;
 }
