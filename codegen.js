@@ -51,7 +51,7 @@ function needunref(expr) {
     return type && type.kind == "class" && expr.referenced;
 }
 function ref(expr) {
-    if (!needref(expr))
+    if (!expr || !needref(expr))
 	return expr;
     var ref = {
 	expr,
@@ -63,7 +63,7 @@ function ref(expr) {
     return ref;
 }
 function unref(expr) {
-    if (!needunref(expr))
+    if (!expr || !needunref(expr))
 	return expr;
     var unref = {
 	expr,
@@ -378,17 +378,21 @@ call_kind.ana0 = function(o, stage) {
     for (i, p in ipairs(o))
 	o[i] = handle(p, stage);
 
-    var thiz = handle(o.func, stage, stage, nil, o);
+    var thiz = handle(o.func, stage, stage, nil, o, true);
     o.func = thiz.member;
     if (!o.func || o.func.kind != "func") {
 	// TODO look for an 'invoke' operator
 	emiterror("trying to call something that is not callable");
 	return o;
     }
-    thiz = thiz[1];
     o.type = o.func.rettype;
-    if (o.func.is_method)
-	table.insert(o, 1, thiz);
+    thiz = thiz[1];
+    if (o.func.is_method) {
+	if (!thiz || !thiz.type || thiz.type.kind != "class")
+	    emiterror("trying to call non static method without an object");
+	else
+	    table.insert(o, 1, thiz);
+    }
     o.referenced = 1;
     return o;
 }
@@ -478,14 +482,21 @@ new_kind.code0_write = function(o, stage) {
     return format("zc_objnew(%s)", cnsname(o.type));
 }
 
-dot_kind.ana0 = function(o, stage, owner, signature) {
+dot_kind.ana0 = function(o, stage, owner, signature, accepttype) {
     if (o[2].kind != "memberref") {
 	emiterror("syntax error");
 	return o;
     }
 
-    o[1] = handle(o[1], stage, stage, owner);
-    o[2] = handle(o[2], stage, stage, o[1].type, signature);
+    o[1] = handle(o[1], stage, stage, owner, nil, true);
+    o[2] = handle(o[2], stage, stage, o[1].type, signature, accepttype);
+
+    if (o[1].kind == "type") {
+	if (o[2].kind == "type")
+	    return o[2];
+	if (!o[2].member || !o[2].member.mods.static)
+	    emiterror("trying to statically access non static member");
+    }
 
     o.type = o[2].type;
     o.member = o[2].member;
@@ -497,7 +508,7 @@ dot_kind.ana0 = function(o, stage, owner, signature) {
     //return o;
     return handle(o, stage);
 }
-dot_kind.code0_write = function(o, stage, owner, signature) {
+dot_kind.code0_write = function(o, stage) {
     return "";
 }
 
@@ -531,7 +542,7 @@ op_kind.code0_write = function(o, stage) {
     return string.format("( %s %s %s )", o1, o.op.cop, o2);
 }
 
-memberref_kind.ana0 = function(o, stage, explicitowner, signature) { 
+memberref_kind.ana0 = function(o, stage, explicitowner, signature, accepttype) { 
     var lookup = o.target..paramssuffix(signature);
     var res = o;
     var ns = explicitowner;
@@ -550,41 +561,39 @@ memberref_kind.ana0 = function(o, stage, explicitowner, signature) {
 		setkind(res, dot_kind);
 	    }
 	    ns = ns.owner;
-	    v = ns.members[lookup];
+	    v = ns.members[lookup] || (accepttype && ns.types[o.target]);
 	    if (v) {
 		if (ns.kind == "namespace" || v.mods.static) {
 		    res = o;
-		    res.type = v.type;
-		    res.member = v;
 		    res.owner = ns;
-		} if (!thizchain)
+		} else if (!thizchain)
 		    v = nil;
 	    }
 	}
-	return handle(res, stage, stage, res.owner, signature);
+
+	return handle(res, stage, stage, res.owner, signature, accepttype);
     }
     v = ns.members[lookup];
     if (v) {
-	if (ns.kind == "namespace" || v.mods.static) {
-	    res = o;
+	if (ns.kind == "namespace" || v.mods.static)
 	    setkind(o, globalget_kind);
-	} else if (explicitowner == o.owner)
+	else if (explicitowner == o.owner)
 	    setkind(o, localget_kind);
 	res.member = v;
 	res.type = v.type;
-    } else if (ns.kind == "class")
-	emiterror("unknown member "..o.target);
-    else
-	emiterror("unknown identifier "..o.target);
+    } else {
+	v = accepttype && ns.types[o.target];
+	if (v) {
+	    res = {
+		type = v,
+	    };
+	    setkind(res, type_kind);
+	} else if (ns.kind == "class")
+	    emiterror("unknown member "..o.target);
+	else
+	    emiterror("unknown identifier "..o.target);
+    }
     return res;
-}
-
-tmpdef_kind.code0_write = function(o, stage) {
-    var type = o[1].type;
-    if (type)
-	return type.localdecl_write(type, o, handle(o[1], stage));
-    else
-	return handle(o[1], stage);
 }
 
 ref_kind.code0_write = function(o, stage) {
@@ -683,12 +692,15 @@ return_kind.code0_write = function(o, stage) {
     outfi("__result = %s; goto __destructors;\n", handle(o[1], stage));
 }
 
-expr_kind.ana1 = function(o, stage) {
+expr_kind.ana0 = function(o, stage) {
     o[1] = unref(handle(o[1], stage));
-    table.insert(newcode, o[1]);
+    return o;
 }
+expr_kind.ana1 = expr_kind.ana0;
 expr_kind.code0_write = function(o, stage) {
-    outfi("%s;\n", handle(o[1], stage));
+    var s = o[1] && handle(o[1], stage);
+    if (type(s) == "string")
+	outfi("%s;\n", s);
 //    outfi("%s;\t/* %s (%d)  %s (%d) */\n",
 //	  handle(o[1], stage),
 //	  (o.info && o.info.source) || "?", 
@@ -707,8 +719,11 @@ function dostage(ns, stage) {
 	"inner",
 	stage.."_post",
 	"post",
-    }))
+    })) {
 	handle(ns, s, stage);
+	if (has_error)
+	    break;
+    }
 }
 
 function codegen() {
@@ -728,6 +743,8 @@ function codegen() {
 	"code0_write", 
 	"code1_write" }) {
 	dostage(namespace, stage);
+	if (has_error)
+	    break;
     }
 
     //dump(namespace);

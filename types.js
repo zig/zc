@@ -131,9 +131,8 @@ string_kind = {
     default_handlers = 1,
 };
 
-tmpdef_kind = {
-    kind = "tmpdef",
-    default_handlers = 1,
+type_kind = {
+    kind = "type",
 };
 ref_kind = {
     kind = "ref",
@@ -146,7 +145,7 @@ unref_kind = {
 
 memberref_kind = {
     kind = "memberref",
-    //default_handlers = 1,
+    default_handlers = 1,
 };
 
 memberget_kind = {

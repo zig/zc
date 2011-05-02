@@ -442,7 +442,8 @@ function zc(f) {
 
 	closesource(source);
 
-	codegen();
+	if (!has_error)
+		codegen();
 
 	if (has_error) {
 		message(format("%d error(s) while compiling", num_error));

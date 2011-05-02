@@ -352,7 +352,7 @@ function processsource(source) {
 	token = processdecl(token);
     }
 
-    dump(namespace);
+    //dump(namespace);
 }
 
 
