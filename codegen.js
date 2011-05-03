@@ -660,12 +660,12 @@ op_kind.ana0 = function(o, stage) {
 		o[2] = cast(o[2], gettype("boolean", globalns));
 	}
 	
-	if (o.op.comparison && o[1].type != o[2].type) {
+	/*if (o.op.comparison && o[1].type != o[2].type) {
 	    if (cancast(o[2], o[1].type))
 		o[2] = cast(o[2], o[1].type);
 	    else if (cancast(o[1], o[2].type))
 		o[1] = cast(o[1], o[2].type);
-	}
+	}*/
 	lookup = "__operator_"..o.op.name..paramssuffix(o);
 	m = getmember(lookup); /* static method */
 	if ((!m || m.is_method) && o[1].type)
@@ -840,6 +840,10 @@ nil_kind.code0_write = function(o) {
  
 return_kind.ana0 = function(o, stage) {
     o[1] = ref(handle(o[1], stage));
+    /*if (o[1].type != o.owner.rettype) {
+	if (cancast(o[1], o.owner.rettype))
+	    o[1] = cast(o[1], o.owner.rettype);
+    }*/
     if (o[1].type != o.owner.rettype)
 	emiterror("incompatible returned type");
     return o;

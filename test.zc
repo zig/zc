@@ -88,7 +88,7 @@ test_t newobj() {
 int takeobj(test_t in) {
 }
 
-float main() {
+int main() {
     test_t test;
 
     int a, b;
@@ -120,6 +120,6 @@ float main() {
     test = test_t();
     test = null;
     test = test_t(10);
-    return test.toto(10, 3.5);
+    return int(test.toto(10, 3.5));
     //return newobj().a;
 }
