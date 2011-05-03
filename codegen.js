@@ -11,10 +11,10 @@ function newtmp(expr) {
     if (!expr.type)
 	return expr;
 
-    if (expr.type == gettype("void")) {
+    if (expr.type == gettype("void", globalns)) {
 	addexpr(expr);
 	var v = {
-	    type = gettype("void");
+	    type = gettype("void", globalns);
 	};
 	return v;
     }
@@ -194,16 +194,73 @@ function handle_code(code, stage, pos) {
     return rescode;
 }
 
+// can we cast expr into type ?
+function cancast(expr, type) {
+    if (!expr.type || !type)
+	return false;
+    if (expr.type == type)
+	return true;
+    var f = type.members["__init"..paramssuffix({ { type = expr.type } })];
+    print(expr.type.kind, type.kind, f);
+    return f && f.kind == "func";
+}
+
+// make sure you check it's castable before
+function cast(expr, type) {
+    if (expr.type == type)
+	return expr;
+    var f = type.members["__init"..paramssuffix({ { type = expr.type } })];
+    var casted = {
+	expr,
+	func = f,
+	type = type,
+    };
+    setkind(casted, call_kind);
+
+    if (type.kind == "class") {
+	var thiz = {
+	    type = type,
+	};
+	setkind(thiz, new_kind);
+	thiz = newtmp(thiz);
+	table.insert(casted, thiz);
+	thiz.referenced = true;
+    }
+
+    return casted;
+}
+
 class_kind.init0_post = function(ns, stage) {
     for (i, f in ipairs(ns.methods)) {
 	f.owner = ns;
 	handle(f, stage);
 	f.fullname = funcname(f);
 	ns.members[f.fullname] = f;
-	//print("adding", f.rettype.name, f.fullname);
+    }
+    ns.methods = {};
+
+    if (ns.kind == "class") {
+	newop("equal", "boolean", ns, ns);
+	newop("different", "boolean", ns, ns);
+	newop("equal", "boolean", ns, "null");
+	newop("different", "boolean", ns, "null");
+	newop("equal", "boolean", "null", ns);
+	newop("different", "boolean", "null", ns);
+	newcaster("boolean", ns);
+	for (i, f in ipairs(ns.methods)) {
+	    f.owner = ns;
+	    handle(f, stage);
+	    f.fullname = funcname(f);
+	    if (!ns.members[f.fullname])
+		ns.members[f.fullname] = f;
+	}
+	ns.methods = {};
     }
 }
 namespace_kind.init0_post = class_kind.init0_post;
+ctype_kind.init0_post = class_kind.init0_post;
+boolean_kind.init0_post = class_kind.init0_post;
+null_kind.init0_post = class_kind.init0_post;
 
 class_kind.decl0_write = function(ns) {
     setoutput("header");
@@ -247,13 +304,32 @@ namespace_kind.inner = function(ns, stage) {
 class_kind.pre = namespace_kind.pre;
 class_kind.inner = namespace_kind.inner;
 
+null_kind.vardecl_write = function(t, v) {
+    outfi("void *%s;\n", v.name);
+}
+null_kind.localdecl_write = function(t, v) {
+    outfi("void *%s = NULL;\n", v.name);
+}
+null_kind.paramdecl_write = function(t, v) {
+    outfi("void *%s", v.name);
+}
+
+boolean_kind.vardecl_write = function(t, v) {
+    outfi("int %s;\n", v.name);
+}
+boolean_kind.localdecl_write = function(t, v) {
+    outfi("int %s = 0;\n", v.name);
+}
+boolean_kind.paramdecl_write = function(t, v) {
+    outfi("int %s", v.name);
+}
+
 ctype_kind.vardecl_write = function(t, v) {
     outfi("%s %s;\n", t.target, v.name);
 }
 ctype_kind.localdecl_write = function(t, v) {
     outfi("%s %s = 0;\n", t.target, v.name);
 }
-
 ctype_kind.paramdecl_write = function(t, v) {
     outfi("%s %s", t.target, v.name);
 }
@@ -268,11 +344,9 @@ class_kind.vardecl_write = function(t, v) {
 class_kind.localdecl_write = function(t, v) {
     outfi("%s *%s = NULL;\n", cnsname(t), v.name);
 }
-
 class_kind.paramdecl_write = function(t, v) {
     outfi("%s *%s", cnsname(t), v.name);
 }
-
 class_kind.funcret_write = function(t, f, name) {
     outfi("%s *%s", cnsname(t), name);
 }
@@ -356,7 +430,7 @@ func_kind.code0_write = function(f, stage) {
     out("\n\t{\n");
     outindent(1);
     pushnamespace(f);
-    if (f.rettype != gettype("void"))
+    if (f.rettype != gettype("void", globalns))
 	f.rettype.localdecl_write(f.rettype, { name = "__result" });
     for (i, v in pairs(f.members)) {
 	if (!v.param_index)
@@ -369,7 +443,7 @@ func_kind.code0_write = function(f, stage) {
     for (i, v in pairs(f.members))
 	if (!v.tmpvar && v.type && v.type.local_destructor_write)
 	    v.type.local_destructor_write(v.type, v);
-    if (f.rettype != gettype("void"))
+    if (f.rettype != gettype("void", globalns))
 	outfi("return __result;\n");
     popnamespace(f);
     outindent(-1);
@@ -388,11 +462,12 @@ number_kind.code0_write = function(o, stage) {
     return o.target;
 }
 
-null_kind.ana0 = function(o, stage) {
+constant_kind.ana0 = function(o, stage) {
+    resolve_type(o);
     return o;
 }
-null_kind.code0_write = function(o, stage) {
-    return "NULL";
+constant_kind.code0_write = function(o, stage) {
+    return o.target;
 }
 
 call_kind.ana0 = function(o, stage) {
@@ -405,19 +480,22 @@ call_kind.ana0 = function(o, stage) {
 
     if (thiz.kind == "type") {
 	// cast / constructor
-	var lookup = "__init"..paramssuffix(o);
 	var type = thiz.type;
-	thiz = {
-	    type = type,
-	};
-	setkind(thiz, new_kind);
-	constructor = 1;
+	var lookup = "__init"..paramssuffix(o);
 	o.func = type.members[lookup];
-	if (!o.func)
-	    return thiz;
-	thiz = newtmp(thiz);
-	constructor = cptmp(thiz);
-	constructor.referenced = true;
+	if (o.func.kind == "intrinsicfunc") {
+	    
+	} else if (thiz.type.kind == "class") {
+	    thiz = {
+		type = type,
+	    };
+	    setkind(thiz, new_kind);
+	    if (#o == 0 && !o.func)
+		return thiz;
+	    thiz = newtmp(thiz);
+	    constructor = cptmp(thiz);
+	    constructor.referenced = true;
+	}
     } else {
 	o.func = thiz.member;
 	thiz = thiz[1];
@@ -467,7 +545,12 @@ call_kind.code0_write = function(o, stage) {
 	    params = params..", ";
     }
 
-    return cfuncname(o.func).."("..params..")";
+    if (!o.func.intrinsic)
+	return cfuncname(o.func).."("..params..")";
+    else if (o.func.intrinsic.call_write)
+	return o.func.intrinsic.call_write(o, stage);
+    else
+	return "("..params..")";
 }
 
 get2set_table = {
@@ -505,7 +588,7 @@ assign_kind.ana0 = function(o, stage) {
 	emiterror("lvalue expected");*/
 
     if (o[1].type != o[2].type && 
-	(!o[1].type || o[1].type.kind != "class" || o[2].kind != "null"))
+	(!o[1].type || o[1].type.kind != "class" || o[2].type != gettype("null", globalns)))
 	emiterror("incompatible types in assignement");
 
     o.type = o[1].type;
@@ -561,11 +644,35 @@ dot_kind.code0_write = function(o, stage) {
 op_kind.ana0 = function(o, stage) {
     o[1] = handle(o[1], stage);
     o[2] = handle(o[2], stage);
+
     var lookup = "__operator_"..o.op.name..paramssuffix(o);
     var m = getmember(lookup); /* static method */
     if ((!m || m.is_method) && o[1].type)
 	/* try non static */
 	m = o[1].type.members["__operator_"..o.op.name..paramssuffix({ o[2] })];
+
+    if (!m) {
+	// retry with casting
+	if (o.op.boolean) {
+	    if (cancast(o[1], gettype("boolean", globalns)))
+		o[1] = cast(o[1], gettype("boolean", globalns));
+	    if (cancast(o[2], gettype("boolean", globalns)))
+		o[2] = cast(o[2], gettype("boolean", globalns));
+	}
+	
+	if (o.op.comparison && o[1].type != o[2].type) {
+	    if (cancast(o[2], o[1].type))
+		o[2] = cast(o[2], o[1].type);
+	    else if (cancast(o[1], o[2].type))
+		o[1] = cast(o[1], o[2].type);
+	}
+	lookup = "__operator_"..o.op.name..paramssuffix(o);
+	m = getmember(lookup); /* static method */
+	if ((!m || m.is_method) && o[1].type)
+	    /* try non static */
+	    m = o[1].type.members["__operator_"..o.op.name..paramssuffix({ o[2] })];
+    }
+
     if (!m) {
 	emiterror("unknown method "..lookup);
 	return o;
@@ -724,6 +831,9 @@ localset_kind.code0_write = function(o, stage) {
     return format("(%s = %s)", o.target, handle(o[1], stage));
 }
 
+nil_kind.ana0 = function(o) {
+    o.type = gettype("void", globalns);
+}
 nil_kind.code0_write = function(o) {
     return "";
 }
@@ -735,7 +845,10 @@ return_kind.ana0 = function(o, stage) {
     return o;
 }
 return_kind.code0_write = function(o, stage) {
-    outfi("__result = %s; goto __destructors;\n", handle(o[1], stage));
+    if (!o[1] || o[1].type == gettype("void", globalns))
+	outfi("goto __destructors;\n");
+    else
+	outfi("__result = %s; goto __destructors;\n", handle(o[1], stage));
 }
 
 expr_kind.ana0 = function(o, stage) {

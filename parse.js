@@ -37,8 +37,24 @@ function processterm(token) {
 	token = gettoken();
     } else if (token == "null") {
 	res = {
+	    type = typeref("null"),
+	    target = "NULL",
 	};
-	setkind(res, null_kind);
+	setkind(res, constant_kind);
+	token = gettoken();
+    } else if (token == "true") {
+	res = {
+	    type = typeref("boolean"),
+	    target = "1",
+	};
+	setkind(res, constant_kind);
+	token = gettoken();
+    } else if (token == "false") {
+	res = {
+	    type = typeref("boolean"),
+	    target = "0",
+	};
+	setkind(res, constant_kind);
 	token = gettoken();
     } else if (token == "new") {
 	res = {

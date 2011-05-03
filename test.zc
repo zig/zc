@@ -105,7 +105,20 @@ float main() {
     test.lolo_t.gloubi();
     //test_t.boulga = 32;
 
+    null var;
+    var = null;
+    var = var;
+    //var = true;
+
+    int(32);
+
+    boolean bool;
+    bool = true;
+    bool = (test == null) && bool && test || 32;
+    //bool = null;
+
     test = test_t();
+    test = null;
     test = test_t(10);
     return test.toto(10, 3.5);
     //return newobj().a;
