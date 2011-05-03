@@ -523,6 +523,8 @@ call_kind.ana0 = function(o, stage) {
 call_kind.ana1 = function(o, stage) {
     var unrefs = { };
     for (i, p in ipairs(o)) {
+	p = handle(p, stage);
+	o[i] = p;
 	if (needunref(p)) {
 	    p = newtmp(p);
 	    table.insert(unrefs, p);
@@ -604,7 +606,7 @@ assign_kind.ana0 = function(o, stage) {
 
 new_kind.ana0 = function(o, stage) {
     resolve_type(o);
-    o.referenced = 1;
+    o.referenced = true;
     return o;
 }
 new_kind.code0_write = function(o, stage) {

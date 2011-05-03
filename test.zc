@@ -95,7 +95,8 @@ int main() {
     a = b = global_func();
     test = new test_t;
 
-    passobj(test).toto(2, 3.6);
+    passobj(passobj(test)).toto(2, 3.6);
+    passobj(new test_t).toto(2, 3.6);
     test = newobj();
     takeobj(test);
 
