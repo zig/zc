@@ -94,7 +94,8 @@ function unref(expr) {
 }
 function addexpr(expr) {
     if (get2set_table[expr.kind])
-	/* it's just a getter, do nothing as it's dead code */
+	/* it's just a getter, do nothing as it's dead code. 
+	   BUT IS IT ? 'this' evaluation could have side effect. */
 	return;
     var expr = {
 	expr,
@@ -201,7 +202,7 @@ function cancast(expr, type) {
     if (expr.type == type)
 	return true;
     var f = type.members["__init"..paramssuffix({ { type = expr.type } })];
-    print(expr.type.kind, type.kind, f);
+    //print(expr.type.kind, type.kind, f);
     return f && f.kind == "func";
 }
 
@@ -558,9 +559,12 @@ call_kind.code0_write = function(o, stage) {
 	return cfuncname(o.func).."("..params..")";
     else if (o.func.intrinsic.call_write)
 	return o.func.intrinsic.call_write(o, stage);
-    else if (o.op)
-	return string.format("( %s %s %s )", handle(o[1], stage), o.op.cop, handle(o[2], stage));
-    else
+    else if (o.op) {
+	if (#o == 1)
+	    return string.format("( %s %s )", o.op.cop, handle(o[1], stage));
+	else // 2
+	    return string.format("( %s %s %s )", handle(o[1], stage), o.op.cop, handle(o[2], stage));
+    } else
 	return "("..params..")";
 }
 
@@ -653,8 +657,8 @@ dot_kind.code0_write = function(o, stage) {
 }
 
 op_kind.ana0 = function(o, stage) {
-    o[1] = handle(o[1], stage);
-    o[2] = handle(o[2], stage);
+    for (i, p in ipairs(o))
+	o[i] = handle(p, stage);
 
     var lookup = "__operator_"..o.op.name..paramssuffix(o);
     var m = getmember(lookup); /* static method */
@@ -664,12 +668,10 @@ op_kind.ana0 = function(o, stage) {
 
     if (!m) {
 	// retry with casting
-	if (o.op.boolean) {
-	    if (cancast(o[1], gettype("boolean", globalns)))
-		o[1] = cast(o[1], gettype("boolean", globalns));
-	    if (cancast(o[2], gettype("boolean", globalns)))
-		o[2] = cast(o[2], gettype("boolean", globalns));
-	}
+	if (o.op.boolean)
+	    for (i, p in ipairs(o))
+		if (cancast(p, gettype("boolean", globalns)))
+		    o[i] = cast(p, gettype("boolean", globalns));
 	
 	/*if (o.op.comparison && o[1].type != o[2].type) {
 	    if (cancast(o[2], o[1].type))

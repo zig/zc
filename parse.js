@@ -17,7 +17,17 @@ function processterm(token) {
     var res;
     var pos = savepos();
 
-    if (token == '(') {
+    var op = unaries[token];
+    if (op) {	
+	var expr;
+	token, res = processterm(gettoken());
+	res = {
+	    res,
+	    op = op,
+	    source = pos,
+	};
+	setkind(res, op.specialkind or op_kind);
+    } else if (token == '(') {
 	token, res = processexpression(gettoken(), 0);
 	if (token != ')')
 	    emiterror("')' expected");

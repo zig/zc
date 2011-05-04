@@ -18,6 +18,8 @@ class test_t {
 
     void __init() {
 	a = 42;
+	return;
+	a = 32;
     }
     void __init(int pa) {
 	a = pa;
@@ -127,8 +129,10 @@ int main() {
     int(32);
 
     boolean bool;
-    bool = true;
-    bool = (test == null) && bool && test || 32;
+    bool = !true;
+    bool = !test;
+    bool = !null;
+    bool = (test == null) && bool && test || -32;
     bool = test.lala == test_t.lolo_t();
     bool = test == new test_t;
     bool = test == 32;

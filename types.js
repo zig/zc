@@ -287,6 +287,24 @@ function defctype(name) {
 
 defctype("void");
 
+unaries = {
+    ['!'] = {
+	name = "not",
+	cop = '!',
+	boolean = true,
+    },
+    ['-'] = {
+	name = "negate",
+	cop = '-',
+	numeric = true,
+    },
+    ['~'] = {
+	name = "lnot",
+	cop = '~',
+	numeric = true,
+    },
+}
+
 operators = {
     ['+'] = {
 	name = "plus",
@@ -381,6 +399,8 @@ settype(t, boolean_kind);
 for (t1, p1 in pairs(numbers)) {
     var t = defctype(t1);
     newcaster("boolean", t);
+    for (_, o in pairs(unaries)) if (o.numeric)
+	newop(o.name, t1, t1);
 }
 for (t1, p1 in pairs(numbers)) {
     for (t2, p2 in pairs(numbers)) {
@@ -403,6 +423,8 @@ newop("equal", "boolean", "null", "null");
 newop("different", "boolean", "null", "null");
 newop("and", "boolean", "boolean", "boolean");
 newop("or", "boolean", "boolean", "boolean");
+newop("not", "boolean", "boolean");
+newcaster("boolean", "null");
 
 
 ;
