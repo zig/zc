@@ -297,20 +297,29 @@ function defctype(name) {
 
 defctype("void");
 
-unaries = {
+preops = {
     ['!'] = {
 	name = "not",
 	cop = '!',
+	prio = 10.5,
 	boolean = true,
+    },
+    ['+'] = {
+	name = "nop", // this is just a pointless operator ...
+	cop = '+',
+	prio = 10.5,
+	numeric = true,
     },
     ['-'] = {
 	name = "negate",
 	cop = '-',
+	prio = 10.5,
 	numeric = true,
     },
     ['~'] = {
 	name = "nnot",
 	cop = '~',
+	prio = 10.5,
 	numeric = true,
     },
 }
@@ -469,7 +478,7 @@ settype(t, boolean_kind);
 for (t1, p1 in pairs(numbers)) {
     var t = defctype(t1);
     newcaster("boolean", t);
-    for (_, o in pairs(unaries)) if (o.numeric)
+    for (_, o in pairs(preops)) if (o.numeric)
 	newop(o.name, t1, t1);
 }
 for (t1, p1 in pairs(numbers)) {

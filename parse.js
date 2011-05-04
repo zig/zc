@@ -29,17 +29,7 @@ function processterm(token) {
     var res;
     var pos = savepos();
 
-    var op = unaries[token];
-    if (op) {	
-	var expr;
-	token, res = processterm(gettoken());
-	res = {
-	    res,
-	    op = op,
-	    source = pos,
-	};
-	setkind(res, op.specialkind or op_kind);
-    } else if (token == '(') {
+    if (token == '(') {
 	token, res = processexpression(gettoken(), 0);
 	if (token != ')')
 	    emiterror("')' expected");
@@ -126,6 +116,20 @@ function processexpression(token, prio) {
     var res;
     prio = prio or 0;
 
+    var op = preops[token];
+    if (op) {
+	var pos = savepos();
+	var expr;
+	token, res = processexpression(gettoken(), op.prio);
+	res = {
+	    res,
+	    op = op,
+	    source = pos,
+	};
+	setkind(res, op.specialkind or op_kind);
+	op = preops[token];
+	return token, res;
+    }
     token, res = processterm(token);
 
     while (true) {

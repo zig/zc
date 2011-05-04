@@ -135,7 +135,7 @@ int main() {
     bool = !true;
     bool = !test;
     //if (voidfunc()) {
-    if (test) {
+    if (! !passobj(passobj(test_t())).toto(2, 3.6)) {
 	bool = !null;
 	bool = (test == null) && bool && test || -32;
 	bool = test.lala == test_t.lolo_t();
