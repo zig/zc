@@ -5,10 +5,25 @@ function newlabel() {
     return format("__zc_label%d__", labeln);
 }
 
-function insertstatement(kind, code, s) {
+function putstatement(kind, code, s) {
     s.owner = namespace;
     setkind(s, kind);
     table.insert(code, s);
+}
+
+function putlabel(code, pos, label) {
+    putstatement(label_kind, code, {
+	pos = pos,
+	label = label,
+    });
+}
+
+function putgoto(code, pos, label, cond) {
+    putstatement(goto_kind, code, {
+	cond,
+	pos = pos,
+	target = label,
+    });
 }
 
 function processtype(token) {
@@ -170,7 +185,7 @@ function processstatement(token, code) {
     } else if (token == "return") {
 	var expr;
 	token, expr = processexpression(gettoken());
-	insertstatement(return_kind, code, {
+	putstatement(return_kind, code, {
 	    expr,
 	    pos = pos,
 	    owner = namespace,
@@ -192,45 +207,53 @@ function processstatement(token, code) {
 	else
 	    token = gettoken();
 
-	insertstatement(goto_kind, code, {
-	    cond,
-	    target = labeltrue,
-	    pos = pos,
-	});
+	putgoto(code, pos, labelfalse, cond);
 
-	insertstatement(goto_kind, code, {
-	    target = labelfalse,
-	    pos = pos,
-	});
-
-	insertstatement(label_kind, code, {
-	    label = labeltrue,
-	    pos = pos,
-	});
+	putlabel(code, pos, labeltrue);
 
 	token = processstatement(token, code);
 
 	var labelfini = labelfalse;
 	if (token == "else") {
 	    labelfini = newlabel();
-	    insertstatement(goto_kind, code, {
-		target = labelfini,
-		pos = pos,
-	    });
+	    putgoto(code, pos, labelfini);
 
-	    insertstatement(label_kind, code, {
-		label = labelfalse,
-		pos = pos,
-	    });
+	    putlabel(code, pos, labelfalse);
 
 	    token = gettoken();
 	    token = processstatement(token, code);
 	}
-	insertstatement(label_kind, code, {
-	    label = labelfini,
-	    pos = pos,
-	});
+	putlabel(code, pos, labelfini);
 	return token;
+    } else if (token == "while") {
+	token = gettoken();
+	if (token != '(')
+	    emiterror("'(' expected");
+	else
+	    token = gettoken();
+
+	var labelloop = newlabel();
+	var labelexit = newlabel();
+	putlabel(code, pos, labelloop);
+
+	var cond;
+	token, cond = processexpression(token);
+	cond.pos = pos;
+	if (token != ')')
+	    emiterror("')' expected");
+	else
+	    token = gettoken();
+
+	putgoto(code, pos, labelexit, cond);
+
+	token = processstatement(token, code);
+
+	putgoto(code, pos, labelloop);
+
+	putlabel(code, pos, labelexit);
+
+	return token;
+	
     } else {
 	var s;
 	token, s = processdecl(token);
@@ -437,7 +460,7 @@ function processsource(source) {
 	token = processdecl(token);
     }
 
-    //dump(namespace);
+    dump(namespace);
 }
 
 

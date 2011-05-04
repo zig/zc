@@ -134,7 +134,7 @@ int main() {
     boolean bool;
     bool = !true;
     bool = !test;
-    //if (voidfunc()) {
+    //if (voidfunc()) ;
     if (! !passobj(passobj(test_t())).toto(2, 3.6)) {
 	bool = !null;
 	bool = (test == null) && bool && test || -32;
@@ -144,6 +144,15 @@ int main() {
 	//bool = null;
     } else
 	return -1;
+
+    while (false) ;
+
+    int i;
+    i = 10000000;
+    while (i > 0 || false) 
+    {
+	i = i - 1;
+    }
 
     test = test_t();
     test = null;

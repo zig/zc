@@ -893,7 +893,7 @@ goto_kind.ana0 = function(o, stage) {
 }
 goto_kind.code0_write = function(o, stage) {
     if (o[1]) {
-	outfi("if (%s) goto %s;\n", handle(o[1], stage), o.target);
+	outfi("if (!(%s)) goto %s;\n", handle(o[1], stage), o.target);
     } else
 	outfi("goto %s;\n", o.target);
 }
