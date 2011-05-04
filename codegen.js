@@ -491,15 +491,17 @@ call_kind.ana0 = function(o, stage) {
 	var type = thiz.type;
 	var lookup = "__init"..paramssuffix(o);
 	o.func = type.members[lookup];
-	if (o.func.kind == "intrinsicfunc") {
+	if (o.func && o.func.kind == "intrinsicfunc") {
 	    
 	} else if (thiz.type.kind == "class") {
 	    thiz = {
 		type = type,
 	    };
 	    setkind(thiz, new_kind);
-	    if (#o == 0 && !o.func)
+	    if (#o == 0 && !o.func) {
+		thiz.referenced = true;
 		return thiz;
+	    }
 	    thiz = newtmp(thiz);
 	    constructor = cptmp(thiz);
 	    constructor.referenced = true;

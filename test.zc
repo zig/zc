@@ -1,9 +1,9 @@
 class test_t {
     class lolo_t {
 	int titi;
-	void __init() {
+	/*void __init() {
 	    titi = 32;
-	}
+	    }*/
 	int majoliemethode() {
 	    return 42;
 	}
