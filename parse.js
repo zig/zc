@@ -1,4 +1,16 @@
 
+labeln = 0;
+function newlabel() {
+    labeln++;
+    return format("__zc_label%d__", labeln);
+}
+
+function insertstatement(kind, code, s) {
+    s.owner = namespace;
+    setkind(s, kind);
+    table.insert(code, s);
+}
+
 function processtype(token) {
     if (source.tokentype != "word")
 	return token;
@@ -141,45 +153,90 @@ function processexpression(token, prio) {
     return token, res;
 }
 
-function processstatement(token) {
-    if (token == '{')
-	return processblock(token);
-    if (token == "return") {
-	var r = {
-	};
-	setkind(r, return_kind);
-	token, r[1] = processexpression(gettoken());
-	return checksemicolon(token), r;
-    }
-    return processdecl(token);
-}
-
-function processblock(token) {
-    var code = { };
-    var s;
+function processstatement(token, code) {
+    var pos = savepos();
     if (token == '{') {
 	token = gettoken();
-	while (token != '}') {
-	    var pos = savepos();
-	    token, s = processstatement(token);
-	    if (s) {
-		s.source = pos;
-		s.owner = namespace;
-		table.insert(code, s);
-	    }
-	}
+	while (token && token != '}')
+	    token = processstatement(token, code);
+	if (token != '}')
+	    emiterror("'}' expected");
 	token = gettoken();
+	return token;
+    } else if (token == "return") {
+	var expr;
+	token, expr = processexpression(gettoken());
+	insertstatement(return_kind, code, {
+	    expr,
+	    pos = pos,
+	    owner = namespace,
+	});
+	return checksemicolon(token);
+    } else if (token == "if") {
+	token = gettoken();
+	if (token != '(')
+	    emiterror("'(' expected");
+	else
+	    token = gettoken();
+	var cond;
+	var labeltrue = newlabel();
+	var labelfalse = newlabel();
+	token, cond = processexpression(token);
+	cond.pos = pos;
+	if (token != ')')
+	    emiterror("')' expected");
+	else
+	    token = gettoken();
+
+	insertstatement(goto_kind, code, {
+	    cond,
+	    target = labeltrue,
+	    pos = pos,
+	});
+
+	insertstatement(goto_kind, code, {
+	    target = labelfalse,
+	    pos = pos,
+	});
+
+	insertstatement(label_kind, code, {
+	    label = labeltrue,
+	    pos = pos,
+	});
+
+	token = processstatement(token, code);
+
+	var labelfini = labelfalse;
+	if (token == "else") {
+	    labelfini = newlabel();
+	    insertstatement(goto_kind, code, {
+		target = labelfini,
+		pos = pos,
+	    });
+
+	    insertstatement(label_kind, code, {
+		label = labelfalse,
+		pos = pos,
+	    });
+
+	    token = gettoken();
+	    token = processstatement(token, code);
+	}
+	insertstatement(label_kind, code, {
+	    label = labelfini,
+	    pos = pos,
+	});
+	return token;
     } else {
-	var pos = savepos();
-	token, s = processstatement(token);
+	var s;
+	token, s = processdecl(token);
 	if (s) {
-	    s.source = pos;
 	    s.owner = namespace;
+	    s.pos = pos;
 	    table.insert(code, s);
 	}
+	return token;
     }
-
-    return token, code;
 }
 
 function processfunc(funcname, rettype, mods) {
@@ -240,10 +297,8 @@ function processfunc(funcname, rettype, mods) {
 	return token;
     }
 
-    var code;
-    token, code = processblock(token);
-
-    func.code = code;
+    func.code = {};
+    token = processstatement(token, func.code);
 
     popnamespace();
 

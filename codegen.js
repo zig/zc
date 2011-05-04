@@ -168,7 +168,7 @@ function handle(obj, stage, newstage, ...) {
 	}
 	res = { obj };
     }
-    gotopos(pos);
+    //gotopos(pos);
     return unpack(res or {});
 }
 
@@ -447,7 +447,7 @@ func_kind.code0_write = function(f, stage) {
 	    outfi("zc_objref(%s, %s);\n", cnsname(v.type), v.name);
     }
     handle_code(f.code, stage, f.source.pos);
-    outfi("__destructors:\n");
+    outfi("__destructors:;\n");
     for (i, v in pairs(f.members))
 	if (!v.tmpvar && v.type && v.type.local_destructor_write)
 	    v.type.local_destructor_write(v.type, v);
@@ -878,6 +878,28 @@ expr_kind.code0_write = function(o, stage) {
 //	  (o.info2 && o.info2.source) || "?", 
 //	  (o.info2 && o.info2.currentline) || -1
 //	 );
+}
+
+goto_kind.ana0 = function(o, stage) {
+    for (i, p in ipairs(o)) {
+	p = handle(p, stage);
+	if (cancast(p, gettype("boolean", globalns)))
+	    p = cast(p, gettype("boolean", globalns));
+	else
+	    emiterror("expected boolean compatible expression");
+	o[i] = p;
+    }
+    return o;
+}
+goto_kind.code0_write = function(o, stage) {
+    if (o[1]) {
+	outfi("if (%s) goto %s;\n", handle(o[1], stage), o.target);
+    } else
+	outfi("goto %s;\n", o.target);
+}
+
+label_kind.code0_write = function(o, stage) {
+    outfi("%s:;\n", o.label);
 }
 
 

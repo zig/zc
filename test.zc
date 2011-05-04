@@ -90,6 +90,9 @@ test_t passobj(test_t in) {
     return in;
 }
 
+void voidfunc() {
+}
+
 test_t newobj() {
     test_t test;
     test = new test_t;
@@ -131,12 +134,16 @@ int main() {
     boolean bool;
     bool = !true;
     bool = !test;
-    bool = !null;
-    bool = (test == null) && bool && test || -32;
-    bool = test.lala == test_t.lolo_t();
-    bool = test == new test_t;
-    bool = test == 32;
-    //bool = null;
+    //if (voidfunc()) {
+    if (test) {
+	bool = !null;
+	bool = (test == null) && bool && test || -32;
+	bool = test.lala == test_t.lolo_t();
+	bool = test == new test_t;
+	bool = test == 32;
+	//bool = null;
+    } else
+	return -1;
 
     test = test_t();
     test = null;

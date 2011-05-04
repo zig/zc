@@ -259,6 +259,16 @@ nil_kind = {
     default_handlers = 1,
 };
 
+goto_kind = {
+    kind = "goto",
+    default_handlers = 1,
+};
+
+label_kind = {
+    kind = "label",
+    default_handlers = 1,
+};
+
 
 types = { };
 members = { };
