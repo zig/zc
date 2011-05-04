@@ -246,7 +246,9 @@ class_kind.init0_post = function(ns, stage) {
 	newop("different", "boolean", ns, "null");
 	newop("equal", "boolean", "null", ns);
 	newop("different", "boolean", "null", ns);
-	newcaster("boolean", ns);
+	newcaster("boolean", ns).intrinsic.call_write = function(o, stage) {
+	    return format("(%s != NULL)", handle(o[1], stage));
+	};
 	for (i, f in ipairs(ns.methods)) {
 	    f.owner = ns;
 	    handle(f, stage);
@@ -313,6 +315,9 @@ null_kind.localdecl_write = function(t, v) {
 null_kind.paramdecl_write = function(t, v) {
     outfi("void *%s", v.name);
 }
+null_kind.funcret_write = function(t, f, name) {
+    outfi("void *%s", name);
+}
 
 boolean_kind.vardecl_write = function(t, v) {
     outfi("int %s;\n", v.name);
@@ -322,6 +327,9 @@ boolean_kind.localdecl_write = function(t, v) {
 }
 boolean_kind.paramdecl_write = function(t, v) {
     outfi("int %s", v.name);
+}
+boolean_kind.funcret_write = function(t, f, name) {
+    outfi("int %s", name);
 }
 
 ctype_kind.vardecl_write = function(t, v) {
@@ -333,7 +341,6 @@ ctype_kind.localdecl_write = function(t, v) {
 ctype_kind.paramdecl_write = function(t, v) {
     outfi("%s %s", t.target, v.name);
 }
-
 ctype_kind.funcret_write = function(t, f, name) {
     outfi("%s %s", t.target, name);
 }
@@ -551,6 +558,8 @@ call_kind.code0_write = function(o, stage) {
 	return cfuncname(o.func).."("..params..")";
     else if (o.func.intrinsic.call_write)
 	return o.func.intrinsic.call_write(o, stage);
+    else if (o.op)
+	return string.format("( %s %s %s )", handle(o[1], stage), o.op.cop, handle(o[2], stage));
     else
 	return "("..params..")";
 }
@@ -682,19 +691,11 @@ op_kind.ana0 = function(o, stage) {
     o.func = m;
     o.type = m.rettype;
 
-    if (!m.intrinsic) {
-	/* morph to a normal call */
-	setkind(o, call_kind);
-	o.referenced = 1;
-    }
+    /* morph to a normal call */
+    setkind(o, call_kind);
+    o.referenced = true;
 
     return o;
-}
-op_kind.code0_write = function(o, stage) {
-    var o1, o2 = handle(o[1], stage), handle(o[2], stage);
-    if (!o.func)
-	return "";
-    return string.format("( %s %s %s )", o1, o.op.cop, o2);
 }
 
 memberref_kind.ana0 = function(o, stage, explicitowner, signature, accepttype) { 

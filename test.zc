@@ -1,6 +1,9 @@
 class test_t {
     class lolo_t {
 	int titi;
+	void __init() {
+	    titi = 32;
+	}
 	int majoliemethode() {
 	    return 42;
 	}
@@ -25,6 +28,13 @@ class test_t {
     }
     int moche() {
 	return 3;
+    }
+
+    /*boolean __operator_equal(test_t other) {
+	return a == other.a && lala == other.lala;
+	}*/
+    boolean __operator_equal(int i) {
+	return a == i;
     }
 
     static float __operator_plus(float a, lolo_t l) {
@@ -88,6 +98,9 @@ test_t newobj() {
 int takeobj(test_t in) {
 }
 
+boolean __operator_equal(test_t a, test_t other) {
+    return a.a == other.a && a.lala == other.lala;
+}
 int main() {
     test_t test;
 
@@ -116,6 +129,9 @@ int main() {
     boolean bool;
     bool = true;
     bool = (test == null) && bool && test || 32;
+    bool = test.lala == test_t.lolo_t();
+    bool = test == new test_t;
+    bool = test == 32;
     //bool = null;
 
     test = test_t();
