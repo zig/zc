@@ -93,10 +93,6 @@ function unref(expr) {
     return unref;
 }
 function addexpr(expr) {
-    if (get2set_table[expr.kind])
-	/* it's just a getter, do nothing as it's dead code. 
-	   BUT IS IT ? 'this' evaluation could have side effect. */
-	return;
     var expr = {
 	expr,
 	/*info = debug.getinfo(2),
@@ -862,7 +858,18 @@ expr_kind.ana0 = function(o, stage) {
 }
 expr_kind.ana1 = expr_kind.ana0;
 expr_kind.code0_write = function(o, stage) {
-    var s = o[1] && handle(o[1], stage);
+    var expr = o[1];
+
+    // dead code elimination
+    // to be moved into the analysis phase
+    while (get2set_table[expr.kind]) {
+	if (expr[1])
+	    expr = expr[1];
+	else
+	    return;
+    }
+
+    var s = expr && handle(expr, stage);
     if (type(s) == "string")
 	outfi("%s;\n", s);
 //    outfi("%s;\t/* %s (%d)  %s (%d) */\n",

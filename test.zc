@@ -154,6 +154,8 @@ int main() {
 	i = i - 1;
     }
 
+    newobj().a;
+
     test = test_t();
     test = null;
     test = test_t(10);
