@@ -363,6 +363,7 @@ function processclassdecl(mods) {
 
 ismod = {
     static = 1,
+    final = 1,
 };
 
 function processdecl(token) {
@@ -457,7 +458,10 @@ function dump(v, i) {
 function processsource(source) {
     var token = gettoken(source);
     while (token) {
-	token = processdecl(token);
+	var expr;
+	token, expr = processdecl(token);
+	if (expr)
+	    emiterror("unexpected expression");
     }
 
     dump(namespace);

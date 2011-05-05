@@ -99,8 +99,8 @@ function addexpr(expr) {
 	return;
     var expr = {
 	expr,
-	info = debug.getinfo(2),
-	info2 = debug.getinfo(3),
+	/*info = debug.getinfo(2),
+	info2 = debug.getinfo(3),*/
     }
     setkind(expr, expr_kind);
     table.insert(newcode, expr);
@@ -186,10 +186,7 @@ function handle_code(code, stage, pos) {
 	    out("*/\n");
 	}
 	var o = handle(s, stage);
-	if (type(o) != "table") // temp hack
-	    table.insert(newcode, s);
-	else
-	    table.insert(newcode, o);
+	table.insert(newcode, o);
     }
     newcode = oldcode;
     return rescode;
@@ -202,7 +199,6 @@ function cancast(expr, type) {
     if (expr.type == type)
 	return true;
     var f = type.members["__init"..paramssuffix({ { type = expr.type } })];
-    //print(expr.type.kind, type.kind, f);
     return f && f.kind == "func";
 }
 
@@ -384,7 +380,6 @@ intrinsicfunc_kind.init0 = function(f, stage) {
 	    mods = {},
 	}
 	setkind(param, var_kind);
-	//print(f.name);
 	setmember(param, f);
 	table.insert(f.params, 1, param);
     }
@@ -651,7 +646,6 @@ dot_kind.ana0 = function(o, stage, owner, signature, accepttype) {
     table.remove(o, 2);
     setkind(o, memberget_kind);
 
-    //return o;
     return handle(o, stage);
 }
 dot_kind.code0_write = function(o, stage) {
