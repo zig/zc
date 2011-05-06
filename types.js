@@ -36,10 +36,16 @@ setkind = setobj;
 
 function settype(type, kind) {
     var name = type.name;
-    if (types[name])
-	emiterror("shadowing existing type");
+    if (name) {
+	if (types[name])
+	    emiterror("shadowing existing type");
+	types[name] = type;
+    }
     type.owner = namespace;
-    types[name] = type;
+    type.types = type.types || {};
+    type.members = type.members || {};
+    type.methods = type.methods || {};
+    type.declarations = type.declarations || {};
     setkind(type, kind);
 }
 
@@ -128,6 +134,18 @@ function newop(name, rt, ...) {
     table.insert(namespace.methods, func);
 }
     
+function defctype(name) {
+    var t = {
+	name = name,
+	target = name,
+	members = {},
+	types = {},
+	methods = {},
+    };
+    settype(t, ctype_kind);
+    return t;
+}
+
 namespace_kind = {
     kind = "namespace",
 };
@@ -268,34 +286,6 @@ label_kind = {
     kind = "label",
     default_handlers = 1,
 };
-
-
-types = { };
-members = { };
-
-namespace = {
-    members = members,
-    types = types,
-    methods = {},
-};
-globalns = namespace;
-setkind(namespace, namespace_kind);
-
-namespaces = { }
-
-function defctype(name) {
-    var t = {
-	name = name,
-	target = name,
-	members = {},
-	types = {},
-	methods = {},
-    };
-    settype(t, ctype_kind);
-    return t;
-}
-
-defctype("void");
 
 preops = {
     ['!'] = {
@@ -459,6 +449,14 @@ numbers = {
     double = 3,
 };
 
+namespaces = { };
+
+globalns = {};
+settype(globalns, namespace_kind);
+pushnamespace(globalns);
+
+defctype("void");
+
 var t = {
     name = "null",
     members = {},
@@ -478,8 +476,9 @@ settype(t, boolean_kind);
 for (t1, p1 in pairs(numbers)) {
     var t = defctype(t1);
     newcaster("boolean", t);
-    for (_, o in pairs(preops)) if (o.numeric)
-	newop(o.name, t1, t1);
+    for (_, o in pairs(preops)) 
+	if (o.numeric)
+	    newop(o.name, t1, t1);
 }
 for (t1, p1 in pairs(numbers)) {
     for (t2, p2 in pairs(numbers)) {
@@ -498,11 +497,16 @@ for (t1, p1 in pairs(numbers)) {
     }
 }
 
+newcaster("boolean", "boolean");
+for (_, o in pairs(preops)) 
+    if (o.boolean)
+	newop(o.name, "boolean", "boolean");
+for (_, o in pairs(operators))
+    if (o.boolean || o.comparison)
+	newop(o.name, "boolean", "boolean", "boolean");
+
 newop("equal", "boolean", "null", "null");
 newop("different", "boolean", "null", "null");
-newop("and", "boolean", "boolean", "boolean");
-newop("or", "boolean", "boolean", "boolean");
-newop("not", "boolean", "boolean");
 newcaster("boolean", "null");
 
 
