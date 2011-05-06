@@ -117,7 +117,7 @@ function cnsname(ns) {
 	return "?";
     if (!ns.name)
 	return "";
-    return cnsprefix(ns.parent)..ns.name;
+    return cnsprefix(ns.owner)..ns.name;
 }
 
 function cnsprefix(ns) {

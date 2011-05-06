@@ -271,17 +271,13 @@ function processfunc(funcname, rettype, mods) {
 
     func = {
 	name = funcname,
-	parent = namespace,
 	rettype = rettype,
 	params = params,
-	types = {},
-	members = {},
 	mods = mods,
 	source = savepos();
     };
-    setkind(func, func_kind);
-    //setmember(func);
     table.insert(namespace.methods, func);
+    setnamespace(func, func_kind);
     pushnamespace(func);
 
     var token = gettoken();
@@ -343,10 +339,6 @@ function processclassdecl(mods) {
 
     var c = {
 	name = name,
-	members = {},
-	types = {},
-	methods = {},
-	parent = namespace,
 	mods = mods,
     };
     settype(c, class_kind);

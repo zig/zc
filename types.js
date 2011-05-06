@@ -27,26 +27,27 @@ function setmeta(meta) {
     };
 }
 
-function setobj(obj, meta) {
+function setkind(obj, meta) {
     if (!meta.__index)
 	setmeta(meta);
     setmetatable(obj, meta);
 }
-setkind = setobj;
+
+function setnamespace(ns, kind) {
+    ns.owner = namespace;
+    ns.types = ns.types || {};
+    ns.members = ns.members || {};
+    ns.methods = ns.methods || {};
+    ns.declarations = ns.declarations || {};
+    setkind(ns, kind);
+}
 
 function settype(type, kind) {
     var name = type.name;
-    if (name) {
-	if (types[name])
-	    emiterror("shadowing existing type");
-	types[name] = type;
-    }
-    type.owner = namespace;
-    type.types = type.types || {};
-    type.members = type.members || {};
-    type.methods = type.methods || {};
-    type.declarations = type.declarations || {};
-    setkind(type, kind);
+    if (types[name])
+	emiterror("shadowing existing type");
+    types[name] = type;
+    setnamespace(type, kind);
 }
 
 function gettype(name, ns) {
@@ -85,7 +86,6 @@ function newcaster(t1, t2) {
 	t1 = gettype(t1, globalns);
     var func = {
 	name = "__init",
-	parent = t1,
 	rettype = t1,
 	params = {
 	    {
@@ -93,15 +93,13 @@ function newcaster(t1, t2) {
 		type = typeref(t2),
 	    }
 	},
-	types = {},
-	members = {},
 	intrinsic = {
 	    
 	},
 	mods = {},
     };
+    setnamespace(func, intrinsicfunc_kind);
     func.members.right = func.params[1];
-    setkind(func, intrinsicfunc_kind);
     table.insert(t1.methods, func);
 
     return func;
@@ -110,16 +108,14 @@ function newcaster(t1, t2) {
 function newop(name, rt, ...) {
     var func = {
 	name = "__operator_"..name,
-	parent = namespace,
 	rettype = typeref(rt),
 	params = {},
-	types = {},
-	members = {},
 	intrinsic = {
 	    
 	},
 	mods = {},
     };
+    setnamespace(func, intrinsicfunc_kind);
 
     for (i, t in ipairs { ... }) {
 	var p = {
@@ -130,7 +126,6 @@ function newop(name, rt, ...) {
 	setmember(p, func);
     }
 
-    setkind(func, intrinsicfunc_kind);
     table.insert(namespace.methods, func);
 }
     
@@ -138,9 +133,6 @@ function defctype(name) {
     var t = {
 	name = name,
 	target = name,
-	members = {},
-	types = {},
-	methods = {},
     };
     settype(t, ctype_kind);
     return t;
@@ -443,7 +435,7 @@ operators = {
     },
 };
 
-numbers = { 
+var numbers = { 
     int = 1, 
     float = 2,
     double = 3,
@@ -452,24 +444,18 @@ numbers = {
 namespaces = { };
 
 globalns = {};
-settype(globalns, namespace_kind);
+setnamespace(globalns, namespace_kind);
 pushnamespace(globalns);
 
 defctype("void");
 
 var t = {
     name = "null",
-    members = {},
-    types = {},
-    methods = {},
 };
 settype(t, null_kind);
 
 var t = {
     name = "boolean",
-    members = {},
-    types = {},
-    methods = {},
 };
 settype(t, boolean_kind);
 
