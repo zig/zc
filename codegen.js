@@ -229,6 +229,7 @@ class_kind.init0_post = function(ns, stage) {
 	handle(f, stage);
 	f.fullname = funcname(f);
 	ns.members[f.fullname] = f;
+	table.insert(ns.declarations, f);
     }
     ns.methods = {};
 
@@ -287,12 +288,16 @@ class_kind.code0_write = function(ns) {
 }
 
 namespace_kind.pre = function(ns, stage) {
-    for (i, k in pairs(ns.types))
-	dostage(k, stage);
+    if (stage != "zapi_write")
+	for (i, k in pairs(ns.types))
+	    dostage(k, stage);
 }
 
 namespace_kind.inner = function(ns, stage) {
-    for (i, k in pairs(ns.members))
+    if (stage == "zapi_write")
+	for (i, k in pairs(ns.types))
+	    dostage(k, stage);
+    for (i, k in pairs(ns.declarations))
 	dostage(k, stage);
 }
 
@@ -903,6 +908,7 @@ label_kind.code0_write = function(o, stage) {
     outfi("%s:;\n", o.label);
 }
 
+include "zapi"
 
 function dostage(ns, stage) {
     for (i, s in ipairs({
@@ -930,6 +936,7 @@ function codegen() {
 	"init0", 
 	"ana0", 
 	"ana1", 
+	"zapi_write",
 	"decl0_write", 
 	"decl1_write", 
 	"decl2_write", 

@@ -1,7 +1,7 @@
 
 .SUFFIXES: .lua .js .c .out .h .zc
 
-ZC_FILES=zc.lua parse.lua codegen.lua types.lua
+ZC_FILES=zc.lua parse.lua codegen.lua types.lua zapi.lua
 
 all:	zc
 

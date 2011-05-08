@@ -428,6 +428,7 @@ function zc(f) {
 	modulename = strip_ext(filename);
 	newoutput("header", modulename..".h");
 	newoutput("code", modulename..".c");
+	newoutput("zapi", modulename..".zapi");
 	setoutput("code");
 
 	message ("Reading from "..filename);

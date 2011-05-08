@@ -396,6 +396,7 @@ function processdecl(token) {
 	    };
 	    setkind(v, var_kind);
 	    setmember(v);
+	    table.insert(namespace.declarations, v);
 	    if (token != ',')
 		break;
 	    name = gettoken();
