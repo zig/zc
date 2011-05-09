@@ -7,7 +7,7 @@ class_kind.zapi_write_pre = function(ns) {
 
 class_kind.zapi_write_post = function(ns) {
     outindent(-1);
-    outfi("};\n");
+    outfi("}\n");
 }
 
 var_kind.zapi_write = function(v) {

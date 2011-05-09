@@ -169,6 +169,8 @@ function handle(obj, stage, newstage, ...) {
 }
 
 function handle_code(code, stage, pos) {
+    if (!code)
+	return;
     var uppercode = newcode;
     newcode = { };
     var rescode = newcode;
@@ -371,6 +373,23 @@ var_kind.decl1_write = function(v) {
 	t.vardecl_write(t, v);
 }
 
+raw_kind.decl1_write = function(v) {
+    setoutput("header");
+    var pos = v.start.pos;
+    var source = v.start.source;
+    var line = source.tokenlines[pos];
+    outfi("");
+    while (pos < v.stop.pos - 1) {
+	if (line != source.tokenlines[pos]) {
+	    line = source.tokenlines[pos];
+	    out("\n\t");
+	}
+	outf("%s ", source.tokens[pos]);
+	pos++;
+    }
+    out("\n");
+}
+
 intrinsicfunc_kind.init0 = function(f, stage) {
     if (f.owner.kind == "class" && !f.mods.static) {
 	f.is_method = 1;
@@ -429,6 +448,8 @@ func_kind.decl2_write = function(f, stage) {
 }
 
 func_kind.code0_write = function(f, stage) {
+    if (!f.code)
+	return;
     setoutput("code");
     funcdecl(f);
     out("\n\t{\n");

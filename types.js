@@ -146,6 +146,10 @@ ctype_kind = {
     kind = "ctype",
 };
 
+raw_kind= {
+    kind = "class",
+};
+
 class_kind= {
     kind = "class",
 };

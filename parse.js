@@ -316,7 +316,7 @@ function processfunc(funcname, rettype, mods) {
     token = gettoken();
     if (token != '{') {
 	popnamespace();
-	emiterror("'{' expected");
+	//emiterror("'{' expected");
 	return token;
     }
 
@@ -353,9 +353,36 @@ function processclassdecl(mods) {
     return gettoken();
 }
 
+function processraw(token, mods) {
+    if (token != "{")
+	return token;
+
+    var nb = 1;
+    var raw = {
+	mods = mods,
+	start = savepos(),
+    };
+    setkind(raw, raw_kind);
+
+    while (token && nb > 0) {
+	token = gettoken();
+	if (token == "{")
+	    nb++;
+	if (token == "}")
+	    nb--;
+    }
+
+    raw.stop = savepos();
+
+    table.insert(namespace.declarations, raw);
+
+    return gettoken();
+}
+
 ismod = {
     static = 1,
     final = 1,
+    public = 1,
 };
 
 function processdecl(token) {
@@ -366,6 +393,9 @@ function processdecl(token) {
 	mods[token] = 1;
 	token = gettoken();
     }
+
+    if (token == "raw")
+	return processraw(gettoken(), mods);
 
     if (token == "class")
 	return processclassdecl(mods);
@@ -457,7 +487,7 @@ function processsource(source) {
 	    emiterror("unexpected expression");
     }
 
-    dump(namespace);
+    //dump(namespace);
 }
 
 

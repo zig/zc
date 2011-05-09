@@ -11,7 +11,10 @@ zc:	$(ZC_FILES)
 %:	%.c %.h zc.h
 	gcc -g -I. $< -o $@
 
-%.c %.h: %.zc $(ZC_FILES)
+%.o:	%.c %.h zc.h
+	gcc -c -g -I. $< -o $@
+
+%.c %.h %.zapi: %.zc $(ZC_FILES)
 	lua zc.lua -v $<
 
 .js.lua:

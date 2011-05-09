@@ -1,0 +1,23 @@
+
+raw {
+}
+
+class String {
+
+    final int length;
+    raw {
+	char *buf;
+    }
+    
+    void __init();
+
+}
+
+raw {
+    #include <string.h>
+    #include "strings.h"
+    void String___init(String *this)
+    {
+	
+    }
+}
