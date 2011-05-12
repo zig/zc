@@ -347,7 +347,7 @@ function basegettoken(source) {
 		source.linebuffer = string.sub(s, k+1);
 		source.tokentype = "comment";
 		token = token..string.sub(s, j+2, k-1);
-		//return basegettoken(source);
+		return basegettoken(source);
 	}
 	
 	if (source.tokentype == "word" && !string.find(token, "[^0123456789%.]")) {

@@ -148,6 +148,7 @@ int main() {
     while (false) ;
 
     int i;
+    i = 'a.';
     i = 10000000;
     while (i > 0 || false) 
     {
@@ -156,9 +157,12 @@ int main() {
 
     newobj().a;
 
+    //i = "hello";
+
     test = test_t();
     test = null;
     test = test_t(10);
     return int(test.toto(10, 3.5));
     //return newobj().a;
 }
+

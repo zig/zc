@@ -477,7 +477,7 @@ func_kind.code0_write = function(f, stage) {
 
 
 number_kind.ana0 = function(o, stage) {
-    if (string.find(o.target, '[.]'))
+    if (!string.find(o.target, "'") && string.find(o.target, '[.]'))
 	o.type = gettype("float", globalns);
     else
 	o.type = gettype("int", globalns);

@@ -35,7 +35,7 @@ function processtype(token) {
 function checksemicolon(token) {
     if (token != ';')
 	emiterror("expected ';'");
-    //else
+    else
 	token = gettoken();
     return token;
 }
@@ -56,7 +56,13 @@ function processterm(token) {
 	};
 	setkind(res, number_kind);
 	token = gettoken();
-    } else if (source.tokentype == "string") {
+    } else if (source.tokentype == "'") {
+	res = {
+	    target = token,
+	};
+	setkind(res, number_kind);
+	token = gettoken();
+    } else if (source.tokentype == '"') {
 	res = {
 	    target = token,
 	};
