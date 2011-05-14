@@ -157,6 +157,8 @@ int main() {
 
     newobj().a;
 
+    test_t.lolo_t();
+
     //i = "hello";
 
     test = test_t();

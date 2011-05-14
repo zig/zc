@@ -11,29 +11,33 @@ struct zc_obj_s {
 };
 
 
-#define zc_toobj(obj) (((zc_obj_t *) (obj)) - 1)
-#define zc_totype(type, obj) ((type *) ((obj) + 1))
+#define zc_toobj(ptr) (((zc_obj_t *) (ptr)) - 1)
+#define zc_totype(type, obj) ((type *) (obj))
 
-static inline zc_obj_t *_zc_objref(zc_obj_t *m, const char *file, const char *function, int line) 
-{ 
-  /*if (m)
-    printf("%s %d: ref %d -> %d\n", function, line, m->refcount, m->refcount + 1);*/
+static inline zc_obj_t *_zc_objref(void *ptr, const char *file, const char *function, int line) 
+{
+  if (!ptr)
+    return ptr;
+  zc_obj_t *m = zc_toobj(ptr);
+  //printf("%s %d: ref %d -> %d\n", function, line, m->refcount, m->refcount + 1);
   m->refcount++;
-  return m;
+  return ptr;
 }
-#define zc_objref(type, obj) ((obj)? zc_totype(type, _zc_objref(zc_toobj(obj), __FILE__, __FUNCTION__, __LINE__)) : (obj))
+#define zc_objref(type, obj) zc_totype(type, _zc_objref(obj, __FILE__, __FUNCTION__, __LINE__))
 
-static inline zc_obj_t *_zc_objunref(zc_obj_t *m, void (*destructor)(void *), const char *file, const char *function, int line) 
-{ 
-  /*if (m)
-    printf("%s %d: unref %d -> %d\n", function, line, m->refcount, m->refcount - 1);*/
+static inline zc_obj_t *_zc_objunref(void *ptr, void (*destructor)(void *), const char *file, const char *function, int line) 
+{
+  if (!ptr)
+    return ptr;
+  zc_obj_t *m = zc_toobj(ptr);
+  //printf("%s %d: unref %d -> %d\n", function, line, m->refcount, m->refcount - 1);
   if ((--m->refcount) == 0) {
-    destructor(zc_totype(void, m));
+    destructor(ptr);
     free(m); 
   }
-  return m;
+  return ptr;
 }
-#define zc_objunref(type, obj) ((obj)? zc_totype(type, _zc_objunref(zc_toobj(obj), (void *) type##__destructor, __FILE__, __FUNCTION__, __LINE__)) : (obj))
+#define zc_objunref(type, obj) zc_totype(type, _zc_objunref(obj, (void *) type##__destructor, __FILE__, __FUNCTION__, __LINE__))
 
 inline zc_obj_t *_zc_objnew(size_t size)
 {
@@ -41,7 +45,7 @@ inline zc_obj_t *_zc_objnew(size_t size)
   ptr->refcount = 1; 
   return ptr;
 }
-#define zc_objnew(type) zc_totype(type, _zc_objnew(sizeof(type)))
+#define zc_objnew(type) zc_totype(type, _zc_objnew(sizeof(type)) + 1)
 
 
 #define zc_setglobal(g, v) (g = (v))
