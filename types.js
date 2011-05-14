@@ -21,9 +21,24 @@ function typeref(name) {
     };
 }
 
+var rtypes = { };
+function referencetype(type) {
+    var res = rtypes[type];
+    if (!res) {
+	print("new reference type", type.name);
+	res = setkind({ type = type }, reference_kind);
+	res.__subtype = type;
+	rtypes[type] = res;
+    }
+    return res;
+}
+
 function setmeta(meta) {
     meta.__index = function (obj, i) {
-	return rawget(obj, i) or meta[i];
+	var res = rawget(obj, i) or meta[i];
+	if (res) return res;
+	var sub = rawget(obj, "__subtype");
+	return sub and sub[i];
     };
 }
 
@@ -31,6 +46,7 @@ function setkind(obj, meta) {
     if (!meta.__index)
 	setmeta(meta);
     setmetatable(obj, meta);
+    return obj;
 }
 
 function setnamespace(ns, kind) {
@@ -86,7 +102,7 @@ function newcaster(t1, t2) {
 	t1 = gettype(t1, globalns);
     var func = {
 	name = "__init",
-	rettype = t1,
+	type = t1,
 	params = {
 	    {
 		name = "right",
@@ -108,7 +124,7 @@ function newcaster(t1, t2) {
 function newop(name, rt, ...) {
     var func = {
 	name = "__operator_"..name,
-	rettype = typeref(rt),
+	type = typeref(rt),
 	params = {},
 	intrinsic = {
 	    

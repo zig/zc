@@ -29,7 +29,16 @@ function putgoto(code, pos, label, cond) {
 function processtype(token) {
     if (source.tokentype != "word")
 	return token;
-    return gettoken(), typeref(token);
+
+    var res = typeref(token);
+    token = gettoken();
+
+    if (token == "*") {
+	res = setkind({ type = res }, reference_kind);
+	token = gettoken();
+    }
+
+    return token, res;
 }
 
 function checksemicolon(token) {
@@ -133,7 +142,7 @@ operators['('].special = function(token, res)
     return gettoken(), res;
 }
 
-function processexpression(token, prio) {
+function processexpression(token, prio, acceptnil) {
     var res;
     prio = prio or 0;
 
@@ -153,6 +162,14 @@ function processexpression(token, prio) {
     }
     token, res = processterm(token);
 
+    if (res.kind == "nil") {
+	if (!acceptnil) {
+	    emiterror("syntax error");
+	    token = gettoken();
+	}
+	return token, res;
+    }
+
     while (true) {
 	var op = operators[token];
 	
@@ -164,6 +181,10 @@ function processexpression(token, prio) {
 	    else {
 		var pos = savepos();
 		token, right = processexpression(token, op.prio2 || op.prio);
+		if (right.kind == "nil") {
+		    emiterror("missing right operand");
+		    token = gettoken();
+		}
 		res = {
 		    res, right,
 		    op = op,
@@ -180,7 +201,9 @@ function processexpression(token, prio) {
 
 function processstatement(token, code) {
     var pos = savepos();
-    if (token == '{') {
+    if (token == ";")
+	return gettoken();
+    else if (token == '{') {
 	token = gettoken();
 	while (token && token != '}')
 	    token = processstatement(token, code);
@@ -190,7 +213,7 @@ function processstatement(token, code) {
 	return token;
     } else if (token == "return") {
 	var expr;
-	token, expr = processexpression(gettoken());
+	token, expr = processexpression(gettoken(), nil, true);
 	putstatement(return_kind, code, {
 	    expr,
 	    pos = pos,
@@ -272,12 +295,31 @@ function processstatement(token, code) {
     }
 }
 
-function processfunc(funcname, rettype, mods) {
+function processfunc(mods) {
     var params = { };
 
+    var name, type = processtype(gettoken());
+
+    if (!type) {
+	emiterror("type expected");
+	return name;
+    }
+
+    if (source.tokentype != "word") {
+	emiterror("variable identifier expected");
+	return name;
+    }
+
+    var token = gettoken();
+    if (token != '(') {
+	emiterror("'(' expected");
+	return token;
+    }
+    token = gettoken();
+
     func = {
-	name = funcname,
-	rettype = rettype,
+	name = name,
+	type = type,
 	params = params,
 	mods = mods,
 	source = savepos();
@@ -286,7 +328,6 @@ function processfunc(funcname, rettype, mods) {
     setnamespace(func, func_kind);
     pushnamespace(func);
 
-    var token = gettoken();
     while (token != ')') {
 	var type;
 	token, type = processtype(token);
@@ -359,7 +400,43 @@ function processclassdecl(mods) {
     return gettoken();
 }
 
-function processraw(token, mods) {
+function processvar(mods) {
+    var name, type = processtype(gettoken());
+
+    if (!type) {
+	emiterror("type expected");
+	return name;
+    }
+
+    if (source.tokentype != "word") {
+	emiterror("variable identifier expected");
+	return name;
+    }
+
+    var token = gettoken();
+    while (true) {
+	var v = {
+	    name = name,
+	    type = type,
+	    mods = mods,
+	};
+	setkind(v, var_kind);
+	setmember(v);
+	table.insert(namespace.declarations, v);
+	if (token != ',')
+	    break;
+	name = gettoken();
+	if (source.tokentype != "word") {
+	    emiterror("variable identifier expected");
+	    return name;
+	}
+	token = gettoken();
+    }
+    return checksemicolon(token);
+}
+
+function processraw(mods) {
+    var token = gettoken();
     if (token != "{")
 	return token;
 
@@ -401,51 +478,23 @@ function processdecl(token) {
     }
 
     if (token == "raw")
-	return processraw(gettoken(), mods);
+	return processraw(mods);
 
-    if (token == "class")
+    else if (token == "class")
 	return processclassdecl(mods);
 
-    var type;
-    var pos = savepos(source);
-    token, type = processtype(token);
+    else if (token == "func")
+	return processfunc(mods);
 
-    if (!type || source.tokentype != "word") {
-	token = gotopos(pos);
-	token, s = processexpression(token);
+    else if (token == "var")
+	return processvar(mods);
+
+    else {
+	var token, s = processexpression(token);
 	var expr = { s };
 	setkind(expr, expr_kind);
 	return checksemicolon(token), expr;
     }
-
-    var name = token;
-    token = gettoken();
-
-    if (token == '(') { // function declaration
-	token = processfunc(name, type, mods);
-    } else { // this is a variable
-	while (1) {
-	    var v = {
-		name = name,
-		type = type,
-		mods = mods,
-	    };
-	    setkind(v, var_kind);
-	    setmember(v);
-	    table.insert(namespace.declarations, v);
-	    if (token != ',')
-		break;
-	    name = gettoken();
-	    if (source.tokentype != "word") {
-		emiterror("identifier expected");
-		return name;
-	    }
-	    token = gettoken();
-	}
-	token = checksemicolon(token);
-    }
-
-    return token;
 }
 
 

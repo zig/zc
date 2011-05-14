@@ -1,59 +1,59 @@
 class test_t {
     class lolo_t {
-	int titi;
+	var int titi;
 	/*void __init() {
 	    titi = 32;
 	    }*/
-	int majoliemethode() {
+	func int majoliemethode() {
 	    return 42;
 	}
-	static int gloubi() {
+	static func int gloubi() {
 	    return 332;
 	}
     }
 
-    static int boulga;
-    int a;
-    lolo_t lala;
+    static var int boulga;
+    var int a;
+    var lolo_t *lala;
 
-    void __init() {
+    func void __init() {
 	a = 42;
 	return;
 	a = 32;
     }
-    void __init(int pa) {
+    func void __init(int pa) {
 	a = pa;
     }
 
-    test_t jolie() {
+    func test_t *jolie() {
 	return this;
     }
-    int moche() {
+    func int moche() {
 	return 3;
     }
 
-    /*boolean __operator_equal(test_t other) {
+    /*boolean __operator_equal(test_t *other) {
 	return a == other.a && lala == other.lala;
 	}*/
-    boolean __operator_equal(int i) {
+    func boolean __operator_equal(int i) {
 	return a == i;
     }
 
-    static float __operator_plus(float a, lolo_t l) {
+    static func float __operator_plus(float a, lolo_t *l) {
 	return a + l.titi;
     }
-    float __operator_plus(float b) {
+    func float __operator_plus(float b) {
 	return a + b;
     }
     
-    /*static*/ int with_closure() { // static is forbiden because the method access non static members
+    /*static*/ func int with_closure() { // static is forbiden because the method access non static members
 	this.toto(32, 5.3);
 	return a;
     }
 
-    float toto(int x, float y)
+    func float toto(int x, float y)
     {
-	lolo_t b;
+	var lolo_t *b;
 	b = new lolo_t;
 
 	/*class pipo_t {
@@ -82,34 +82,34 @@ class test_t {
     }
 }
 
-int global_func() {
+func int global_func() {
     return 42;
 }
 
-test_t passobj(test_t in) {
+func test_t *passobj(test_t *in) {
     return in;
 }
 
-void voidfunc() {
+func void voidfunc() {
 }
 
-test_t newobj() {
-    test_t test;
+func test_t *newobj() {
+    var test_t *test;
     test = new test_t;
     test.a = 42;
     return test;
 }
 
-int takeobj(test_t in) {
+func int takeobj(test_t *in) {
 }
 
-boolean __operator_equal(test_t a, test_t other) {
+func boolean __operator_equal(test_t *a, test_t *other) {
     return a.a == other.a && a.lala == other.lala;
 }
-int main() {
-    test_t test;
+func int main() {
+    var test_t *test;
 
-    int a, b;
+    var int a, b;
     a = b = global_func();
     test = new test_t;
 
@@ -124,14 +124,14 @@ int main() {
     test.lolo_t.gloubi();
     //test_t.boulga = 32;
 
-    null var;
-    var = null;
-    var = var;
+    var null v;
+    v = null;
+    v = v;
     //var = true;
 
     int(32);
 
-    boolean bool;
+    var boolean bool;
     bool = !true;
     bool = !test;
     //if (voidfunc()) ;
@@ -147,7 +147,7 @@ int main() {
 
     while (false) ;
 
-    int i;
+    var int i;
     i = 'a.';
     i = 10000000;
     while (i > 0 || false) 
@@ -158,6 +158,8 @@ int main() {
     newobj().a;
 
     test_t.lolo_t();
+    
+    //var int a;
 
     //i = "hello";
 

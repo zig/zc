@@ -63,11 +63,11 @@ function cptmp(tmp) {
 
 function needref(expr) {
     var type = expr.type;
-    return type && type.kind == "class" && !expr.referenced;
+    return type && type.kind == "reference" && !expr.referenced;
 }
 function needunref(expr) {
     var type = expr.type;
-    return type && type.kind == "class" && expr.referenced;
+    return type && type.kind == "reference" && expr.referenced;
 }
 function ref(expr) {
     if (!expr || !needref(expr))
@@ -102,13 +102,19 @@ function addexpr(expr) {
     table.insert(newcode, expr);
 }
 
-function resolve_type(v) {
+function resolve_type(v, owner) {
     // resolve a type
-    if (v.type && v.type.kind == "typeref") {
-	var t = gettype(v.type.target, v.owner);
-	if (!t)
-	    emiterror("unknown type " .. v.type.target);
-	v.type = t;
+    if (v.type) {
+	if (v.type.kind == "reference") {
+	    resolve_type(v.type, v.owner);
+	    if (v.type.type)
+		v.type = referencetype(v.type.type);
+	} else if (v.type.kind == "typeref") {
+	    var t = gettype(v.type.target, v.owner || owner);
+	    if (!t)
+		emiterror("unknown type " .. v.type.target);
+	    v.type = t;
+	}
     }
 }
 
@@ -212,7 +218,7 @@ function cast(expr, type) {
     };
     setkind(casted, call_kind);
 
-    if (type.kind == "class") {
+    if (type.kind == "reference") {
 	var thiz = {
 	    type = type,
 	};
@@ -282,7 +288,7 @@ class_kind.code0_write = function(ns) {
     outfi("%s__destructor(%s *this) {\n", cnsname(ns), cnsname(ns));
     outindent(1);
     for (i, v in pairs(ns.members))
-	if (v.type && v.type.member_destructor_write)
+	if (v.kind == "var" && v.type && v.type.member_destructor_write)
 	    v.type.member_destructor_write(v.type, v);
     outindent(-1);
     outfi("};\n");
@@ -348,7 +354,7 @@ class_kind.vardecl_write = function(t, v) {
     outfi("%s *%s;\n", cnsname(t), v.name);
 }
 class_kind.localdecl_write = function(t, v) {
-    outfi("%s *%s = NULL;\n", cnsname(t), v.name);
+    outfi("%s %s = NULL;\n", cnsname(t), v.name);
 }
 class_kind.paramdecl_write = function(t, v) {
     outfi("%s *%s", cnsname(t), v.name);
@@ -357,10 +363,29 @@ class_kind.funcret_write = function(t, f, name) {
     outfi("%s *%s", cnsname(t), name);
 }
 class_kind.local_destructor_write = function(t, v) {
-    outfi("zc_objunref(%s, %s);\n", cnsname(t), v.name);
+    // TODO
 }
 class_kind.member_destructor_write = function(t, v) {
-    outfi("zc_objunref(%s, this->%s);\n", cnsname(t), v.name);
+    // TODO
+}
+
+reference_kind.vardecl_write = function(t, v) {
+    outfi("%s *%s;\n", cnsname(t.type), v.name);
+}
+reference_kind.localdecl_write = function(t, v) {
+    outfi("%s *%s = NULL;\n", cnsname(t.type), v.name);
+}
+reference_kind.paramdecl_write = function(t, v) {
+    outfi("%s *%s", cnsname(t.type), v.name);
+}
+reference_kind.funcret_write = function(t, f, name) {
+    outfi("%s *%s", cnsname(t.type), name);
+}
+reference_kind.local_destructor_write = function(t, v) {
+    outfi("zc_objunref(%s, %s);\n", cnsname(t.type), v.name);
+}
+reference_kind.member_destructor_write = function(t, v) {
+    outfi("zc_objunref(%s, this->%s);\n", cnsname(t.type), v.name);
 }
 
 var_kind.init0 = resolve_type;
@@ -394,7 +419,7 @@ intrinsicfunc_kind.init0 = function(f, stage) {
 	f.is_method = 1;
 	var param = {
 	    name = thiz,
-	    type = f.owner,
+	    type = referencetype(f.owner),
 	    param_index = 1,
 	    mods = {},
 	}
@@ -404,7 +429,7 @@ intrinsicfunc_kind.init0 = function(f, stage) {
     }
     for (i, k in pairs(f.members))
 	resolve_type(k);
-    f.rettype = gettype(f.rettype.target, f.owner);
+    resolve_type(f);
 }
 func_kind.init0 = function(f, stage) {
     intrinsicfunc_kind.init0(f, stage);
@@ -424,7 +449,7 @@ func_kind.ana1 = function(f, stage) {
 }
 
 function funcdecl(f) {
-    f.rettype.funcret_write(f.rettype, f, cfuncname(f));
+    f.type.funcret_write(f.type, f, cfuncname(f));
     outf("(\n");
     outindent(1);
     for (i, v in ipairs(f.params)) {
@@ -454,12 +479,12 @@ func_kind.code0_write = function(f, stage) {
     out("\n\t{\n");
     outindent(1);
     pushnamespace(f);
-    if (f.rettype != gettype("void", globalns))
-	f.rettype.localdecl_write(f.rettype, { name = "__result" });
+    if (f.type != gettype("void", globalns))
+	f.type.localdecl_write(f.type, { name = "__result" });
     for (i, v in pairs(f.members)) {
 	if (!v.param_index)
 	    v.type.localdecl_write(v.type, v);
-	else if (v.type.kind == "class")
+	else if (v.type.kind == "reference")
 	    outfi("zc_objref(%s, %s);\n", cnsname(v.type), v.name);
     }
     handle_code(f.code, stage, f.source.pos);
@@ -467,7 +492,7 @@ func_kind.code0_write = function(f, stage) {
     for (i, v in pairs(f.members))
 	if (!v.tmpvar && v.type && v.type.local_destructor_write)
 	    v.type.local_destructor_write(v.type, v);
-    if (f.rettype != gettype("void", globalns))
+    if (f.type != gettype("void", globalns))
 	outfi("return __result;\n");
     popnamespace(f);
     outindent(-1);
@@ -511,7 +536,7 @@ call_kind.ana0 = function(o, stage) {
 	    
 	} else if (thiz.type.kind == "class") {
 	    thiz = {
-		type = type,
+		type = referencetype(type),
 	    };
 	    setkind(thiz, new_kind);
 	    if (#o == 0 && !o.func) {
@@ -531,9 +556,9 @@ call_kind.ana0 = function(o, stage) {
 	emiterror("trying to call something that is not callable");
 	return o;
     }
-    o.type = o.func.rettype;
+    o.type = o.func.type;
     if (o.func.is_method) {
-	if (!thiz || !thiz.type || thiz.type.kind != "class")
+	if (!thiz || !thiz.type || thiz.type.kind != "reference")
 	    emiterror("trying to call non static method without an object");
 	else
 	    table.insert(o, 1, thiz);
@@ -621,8 +646,10 @@ assign_kind.ana0 = function(o, stage) {
 	emiterror("lvalue expected");*/
 
     if (o[1].type != o[2].type && 
-	(!o[1].type || o[1].type.kind != "class" || o[2].type != gettype("null", globalns)))
+	(!o[1].type || o[1].type.kind != "reference" || o[2].type != gettype("null", globalns))) {
+	print(o[1].type.kind, o[2].type.kind);
 	emiterror("incompatible types in assignement");
+    }
 
     o.type = o[1].type;
 
@@ -637,11 +664,12 @@ assign_kind.ana0 = function(o, stage) {
 
 new_kind.ana0 = function(o, stage) {
     resolve_type(o);
+    o.type = referencetype(o.type);
     o.referenced = true;
     return o;
 }
 new_kind.code0_write = function(o, stage) {
-    return format("zc_objnew(%s)", cnsname(o.type));
+    return format("zc_objnew(%s)", cnsname(o.type.type));
 }
 
 dot_kind.ana0 = function(o, stage, owner, signature, accepttype) {
@@ -708,7 +736,7 @@ op_kind.ana0 = function(o, stage) {
 	return o;
     }
     o.func = m;
-    o.type = m.rettype;
+    o.type = m.type;
 
     /* morph to a normal call */
     setkind(o, call_kind);
@@ -796,7 +824,7 @@ memberget_kind.code0_write = function(o, stage) {
     return string.format("(%s)->%s", handle(o[1], stage), o.target);
 }
 memberset_kind.ana0 = function(o, stage) {
-    if (o.type.kind != "class")
+    if (o.type.kind != "reference")
 	return o;
     o[1] = newtmp(o[1]);
     o[2] = newtmp(ref(o[2]));
@@ -826,7 +854,7 @@ globalget_kind.code0_write = function(o, stage) {
     return string.format("%s", o.target);
 }
 globalset_kind.ana0 = function(o, stage) {
-    if (o.type.kind != "class")
+    if (o.type.kind != "reference")
 	return o;
     o[1] = newtmp(ref(o[1]));
     var get = {
@@ -862,11 +890,11 @@ nil_kind.code0_write = function(o) {
  
 return_kind.ana0 = function(o, stage) {
     o[1] = ref(handle(o[1], stage));
-    /*if (o[1].type != o.owner.rettype) {
-	if (cancast(o[1], o.owner.rettype))
-	    o[1] = cast(o[1], o.owner.rettype);
+    /*if (o[1].type != o.owner.type) {
+	if (cancast(o[1], o.owner.type))
+	    o[1] = cast(o[1], o.owner.type);
     }*/
-    if (o[1].type != o.owner.rettype)
+    if (o[1].type != o.owner.type)
 	emiterror("incompatible returned type");
     return o;
 }
@@ -928,7 +956,7 @@ label_kind.code0_write = function(o, stage) {
     outfi("%s:;\n", o.label);
 }
 
-include "zapi"
+include "zapi";
 
 function dostage(ns, stage) {
     for (i, s in ipairs({

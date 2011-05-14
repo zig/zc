@@ -21,7 +21,7 @@ func_kind.zapi_write = function(f, stage) {
     outfi("");
     for (m, _ in pairs(f.mods))
 	outf("%s ", m);
-    outf("%s %s", f.rettype.name, f.name);
+    outf("%s %s", f.type.name, f.name);
     out("(");
     for (i, v in ipairs(f.params)) {
 	if (!f.is_method || i > 1) {
