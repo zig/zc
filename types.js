@@ -138,20 +138,27 @@ function defctype(name) {
     return t;
 }
 
+raw_kind = {
+    kind = "raw",
+};
+
 namespace_kind = {
     kind = "namespace",
 };
 
 ctype_kind = {
     kind = "ctype",
+    default_handlers = 1,
 };
 
-raw_kind= {
+class_kind = {
     kind = "class",
+    default_handlers = 1,
 };
 
-class_kind= {
-    kind = "class",
+reference_kind = {
+    kind = "reference",
+    default_handlers = 1,
 };
 
 var_kind = {

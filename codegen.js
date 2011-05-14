@@ -269,7 +269,6 @@ class_kind.decl1_write_pre = function(ns) {
     setoutput("header");
     outfi("struct %s {\n", cnsname(ns));
     outindent(1);
-    outfi("zc_obj_t __zc;\n");
 }
 
 class_kind.decl1_write_post = function(ns) {
