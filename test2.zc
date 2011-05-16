@@ -1,0 +1,36 @@
+
+class toto_t {
+    var int a;
+    //var test_t b;
+    //var toto_t b;
+}
+
+class test_t {
+    var int a;
+
+    var toto_t b;
+
+    func int __operator_plus(int x) {
+	return a + x + b.a;
+    }
+}
+
+func void test(test_t t) {
+    t.a = 30;
+}
+
+func int main() {
+
+    var test_t *a;
+    var test_t b;
+
+    a = new test_t;
+
+    a.a = 42;
+    a.b.a = 10;
+
+    test(b);
+
+    return a + b.a;
+}
+

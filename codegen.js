@@ -154,6 +154,13 @@ function cfuncname(f) {
     return cnsprefix(f.owner)..funcname(f);
 }
 
+function handlestr(obj, stage, str, ...) {
+    if (obj[stage])
+	return obj[stage](obj, stage, str, ...);
+    else
+	return str;
+}
+
 function handle(obj, stage, newstage, ...) {
     var pos = savepos();
     var res;
@@ -266,12 +273,16 @@ ctype_kind.init0_post = class_kind.init0_post;
 boolean_kind.init0_post = class_kind.init0_post;
 null_kind.init0_post = class_kind.init0_post;
 
-class_kind.decl0_write = function(ns) {
+class_kind.decl0_write = function(ns, stage) {
     setoutput("header");
     outfi("typedef struct %s %s;\n", cnsname(ns), cnsname(ns));
 }
 
-class_kind.decl1_write_pre = function(ns) {
+class_kind.decl1_write_pre = function(ns, stage) {
+    // make sure structure are defined in their dependencies order
+    for (t, _ in pairs(ns.classdeps || { }))
+	dostage(t, stage);
+
     setoutput("header");
     outfi("struct %s {\n", cnsname(ns));
     outindent(1);
@@ -351,22 +362,30 @@ ctype_kind.funcret_write = function(t, f, name) {
 }
 
 class_kind.vardecl_write = function(t, v) {
-    outfi("%s *%s;\n", cnsname(t), v.name);
+    outfi("%s %s;\n", cnsname(t), v.name);
 }
 class_kind.localdecl_write = function(t, v) {
-    outfi("%s %s = NULL;\n", cnsname(t), v.name);
+    outfi("%s %s;\n", cnsname(t), v.name);
+    outfi("memset(&%s, 0, sizeof(%s));\n", v.name, v.name);
 }
 class_kind.paramdecl_write = function(t, v) {
     outfi("%s *%s", cnsname(t), v.name);
 }
 class_kind.funcret_write = function(t, f, name) {
-    outfi("%s *%s", cnsname(t), name);
+    // TODO
 }
 class_kind.local_destructor_write = function(t, v) {
     // TODO
 }
 class_kind.member_destructor_write = function(t, v) {
     // TODO
+}
+class_kind.access_write = function(t, stage, s, v) {
+    if (t.kind == "reference" || 
+	(v.kind == "localget" && v.owner.members[v.target].param_index))
+	return s;
+    else
+	return format("(&%s)", s);
 }
 
 reference_kind.vardecl_write = function(t, v) {
@@ -387,8 +406,20 @@ reference_kind.local_destructor_write = function(t, v) {
 reference_kind.member_destructor_write = function(t, v) {
     outfi("zc_objunref(%s, this->%s);\n", cnsname(t.type), v.name);
 }
+reference_kind.access_write = function(t, stage, s, v) {
+    return s;
+}
 
-var_kind.init0 = resolve_type;
+var_kind.init0 = function(t) {
+    resolve_type(t);
+    if (t.owner.kind == "class" && t.type.kind == "class") {
+	t.owner.classdeps = t.owner.classdeps || { };
+	if ((t.type.classdeps && t.type.classdeps[t.owner]) ||
+	    t.owner == t.type)
+	    emiterror("circular type inclusion");
+	t.owner.classdeps[t.type] = true;
+    }
+}
 
 var_kind.decl1_write = function(v) {
     setoutput("header");
@@ -558,7 +589,7 @@ call_kind.ana0 = function(o, stage) {
     }
     o.type = o.func.type;
     if (o.func.is_method) {
-	if (!thiz || !thiz.type || thiz.type.kind != "reference")
+	if (!thiz || !thiz.type || (thiz.type.kind != "reference" && thiz.type.kind != "class"))
 	    emiterror("trying to call non static method without an object");
 	else
 	    table.insert(o, 1, thiz);
@@ -821,7 +852,8 @@ memberget_kind.ana1 = function(o, stage) {
     return t;
 }
 memberget_kind.code0_write = function(o, stage) { 
-    return string.format("(%s)->%s", handle(o[1], stage), o.target);
+    var ac = format("(%s)->%s", handle(o[1], stage), o.target);
+    return handlestr(o.type, "access_write", ac, o);
 }
 memberset_kind.ana0 = function(o, stage) {
     if (o.type.kind != "reference")
@@ -844,14 +876,16 @@ memberset_kind.ana0 = function(o, stage) {
 	return o;
 }
 memberset_kind.code0_write = function(o, stage) {
-    return format("((%s)->%s = %s)", handle(o[1], stage), o.target, handle(o[2], stage));
+    var ac = format("(%s)->%s", handle(o[1], stage), o.target);
+    ac = handlestr(o.type, "access_write", ac, o);
+    return format("(%s = %s)", ac, handle(o[2], stage));
 }
 
 globalget_kind.ana0 = function(o, stage) { 
     return o;
 }
 globalget_kind.code0_write = function(o, stage) { 
-    return string.format("%s", o.target);
+    return string.format("%s", handlestr(o.type, "access_write", o.target, o));
 }
 globalset_kind.ana0 = function(o, stage) {
     if (o.type.kind != "reference")
@@ -867,18 +901,18 @@ globalset_kind.ana0 = function(o, stage) {
     return o;
 }
 globalset_kind.code0_write = function(o, stage) {
-    return format("(%s = %s)", o.target, handle(o[1], stage));
+    return format("(%s = %s)", handlestr(o.type, "access_write", o.target, o), handle(o[1], stage));
 }
 
 localget_kind.ana0 = function(o, stage) {
     return o;
 }
 localget_kind.code0_write = function(o, stage) { 
-    return string.format("%s", o.target);
+    return string.format("%s", handlestr(o.type, "access_write", o.target, o));
 }
 localset_kind.ana0 = globalset_kind.ana0;
 localset_kind.code0_write = function(o, stage) {
-    return format("(%s = %s)", o.target, handle(o[1], stage));
+    return format("(%s = %s)", handlestr(o.type, "access_write", o.target, o), handle(o[1], stage));
 }
 
 nil_kind.ana0 = function(o) {
@@ -959,6 +993,9 @@ label_kind.code0_write = function(o, stage) {
 include "zapi";
 
 function dostage(ns, stage) {
+    if (ns[stage.."_done"])
+	return;
+    ns[stage.."_done"] = true;
     for (i, s in ipairs({
 	"pre",
 	stage.."_pre",

@@ -23,6 +23,7 @@ function putgoto(code, pos, label, cond) {
 	cond,
 	pos = pos,
 	target = label,
+	source = savepos(),
     });
 }
 
@@ -387,6 +388,7 @@ function processclassdecl(mods) {
     var c = {
 	name = name,
 	mods = mods,
+	source = savepos(),
     };
     settype(c, class_kind);
     pushnamespace(c);
@@ -419,6 +421,7 @@ function processvar(mods) {
 	    name = name,
 	    type = type,
 	    mods = mods,
+	    source = savepos(),
 	};
 	setkind(v, var_kind);
 	setmember(v);
