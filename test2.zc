@@ -13,6 +13,12 @@ class test_t {
     func int __operator_plus(int x) {
 	return a + x + b.a;
     }
+
+    func test_t __operator_plus(test_t other) {
+	var test_t res;
+	res.a = a + other.a;
+	return res;
+    }
 }
 
 func void test(test_t t) {
@@ -22,7 +28,7 @@ func void test(test_t t) {
 func int main() {
 
     var test_t *a;
-    var test_t b;
+    var test_t b, c;
 
     a = new test_t;
 
@@ -31,6 +37,8 @@ func int main() {
 
     test(b);
 
-    return a + b.a;
+    c = b + a + b;
+
+    return a + b.a + c.a;
 }
 

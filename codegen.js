@@ -24,11 +24,11 @@ function newtmp(expr) {
     var v = {
 	name = name,
 	type = expr.type,
-	tmpvar = 1,
+	tmpvar = true,
 	member = expr.member,
     };
     setkind(v, var_kind);
-    setmember(v, expr.owner);
+    setmember(v);
 
     var def = {
 	expr,
@@ -55,6 +55,7 @@ function cptmp(tmp) {
 	member = tmp.member,
 	type = tmp.type,
 	referenced = tmp.referenced,
+	owner = tmp.owner,
     };
     setkind(get, localget_kind);
 
@@ -162,7 +163,6 @@ function handlestr(obj, stage, str, ...) {
 }
 
 function handle(obj, stage, newstage, ...) {
-    var pos = savepos();
     var res;
     if (obj.source)
 	gotopos(obj.source); // so that emiterror point to correct position
@@ -177,7 +177,6 @@ function handle(obj, stage, newstage, ...) {
 	}
 	res = { obj };
     }
-    //gotopos(pos);
     return unpack(res or {});
 }
 
@@ -372,7 +371,10 @@ class_kind.paramdecl_write = function(t, v) {
     outfi("%s *%s", cnsname(t), v.name);
 }
 class_kind.funcret_write = function(t, f, name) {
-    // TODO
+    outfi("void %s", name);
+}
+class_kind.funcretarg_write = function(t, f, name) {
+    return format("%s *%s", cnsname(t), name);
 }
 class_kind.local_destructor_write = function(t, v) {
     // TODO
@@ -399,6 +401,8 @@ reference_kind.paramdecl_write = function(t, v) {
 }
 reference_kind.funcret_write = function(t, f, name) {
     outfi("%s *%s", cnsname(t.type), name);
+}
+reference_kind.funcretarg_write = function(t, f, name) {
 }
 reference_kind.local_destructor_write = function(t, v) {
     outfi("zc_objunref(%s, %s);\n", cnsname(t.type), v.name);
@@ -483,11 +487,14 @@ function funcdecl(f) {
     f.type.funcret_write(f.type, f, cfuncname(f));
     outf("(\n");
     outindent(1);
+    var ret = f.type.funcretarg_write && f.type.funcretarg_write(f.type, f, "__result");
     for (i, v in ipairs(f.params)) {
 	v.type.paramdecl_write(v.type, v);
-	if (i < #f.params)
+	if (ret || i < #f.params)
 	    out(",\n");
     }
+    if (ret)
+	outfi("%s", ret);
     out("\n");
     outfi(")");
     outindent(-1);
@@ -510,7 +517,8 @@ func_kind.code0_write = function(f, stage) {
     out("\n\t{\n");
     outindent(1);
     pushnamespace(f);
-    if (f.type != gettype("void", globalns))
+    var ret = f.type.funcretarg_write && f.type.funcretarg_write(f.type, f, "__result");
+    if (f.type != gettype("void", globalns) && !ret)
 	f.type.localdecl_write(f.type, { name = "__result" });
     for (i, v in pairs(f.members)) {
 	if (!v.param_index)
@@ -523,7 +531,7 @@ func_kind.code0_write = function(f, stage) {
     for (i, v in pairs(f.members))
 	if (!v.tmpvar && v.type && v.type.local_destructor_write)
 	    v.type.local_destructor_write(v.type, v);
-    if (f.type != gettype("void", globalns))
+    if (f.type != gettype("void", globalns) && !ret)
 	outfi("return __result;\n");
     popnamespace(f);
     outindent(-1);
@@ -602,7 +610,32 @@ call_kind.ana0 = function(o, stage) {
     } else
 	return o;
 }
-call_kind.ana1 = function(o, stage) {
+call_kind.ana1 = function(o, stage, retarg) {
+    var retarg;
+    var f = o.func;
+    var ret = f.type.funcretarg_write && f.type.funcretarg_write(f.type, f, "__result");
+    var res = o;
+    if (ret) {
+	if (!retarg) {
+	    var v = setkind({
+		name = newtmpname(),
+		type = f.type,
+		tmpvar = true,
+	    }, var_kind);
+	    setmember(v);
+
+	    retarg = setkind({
+		target = v.name,
+		member = v,
+		owner = v.owner,
+		type = v.type,
+	    }, localget_kind);
+	    
+	    res = cptmp(retarg);
+	}
+	table.insert(o, retarg);
+    }
+
     var unrefs = { };
     for (i, p in ipairs(o)) {
 	p = handle(p, stage);
@@ -613,13 +646,18 @@ call_kind.ana1 = function(o, stage) {
 	    o[i] = p;
 	}
     }
+
+    if (res != o)
+	    addexpr(o);
+
     if (#unrefs > 0) {
-	o = newtmp(o);
+	if (res == o)
+	    res = newtmp(res);
 	for (_, p in ipairs(unrefs))
 	    addexpr(unref(p));
     }
 
-    return o;
+    return res;
 }
 call_kind.code0_write = function(o, stage) {
     var params = "";
@@ -678,7 +716,7 @@ assign_kind.ana0 = function(o, stage) {
 
     if (o[1].type != o[2].type && 
 	(!o[1].type || o[1].type.kind != "reference" || o[2].type != gettype("null", globalns))) {
-	print(o[1].type.kind, o[2].type.kind);
+	//print(o[1].type.kind, o[2].type.kind);
 	emiterror("incompatible types in assignement");
     }
 
@@ -878,7 +916,10 @@ memberset_kind.ana0 = function(o, stage) {
 memberset_kind.code0_write = function(o, stage) {
     var ac = format("(%s)->%s", handle(o[1], stage), o.target);
     ac = handlestr(o.type, "access_write", ac, o);
-    return format("(%s = %s)", ac, handle(o[2], stage));
+    if (o.type.kind == "class")
+	return format("(*%s = *%s)", ac, handle(o[2], stage));
+    else
+	return format("(%s = %s)", ac, handle(o[2], stage));
 }
 
 globalget_kind.ana0 = function(o, stage) { 
@@ -901,7 +942,10 @@ globalset_kind.ana0 = function(o, stage) {
     return o;
 }
 globalset_kind.code0_write = function(o, stage) {
-    return format("(%s = %s)", handlestr(o.type, "access_write", o.target, o), handle(o[1], stage));
+    if (o.type.kind == "class")
+	return format("(*%s = *%s)", handlestr(o.type, "access_write", o.target, o), handle(o[1], stage));
+    else
+	return format("(%s = %s)", handlestr(o.type, "access_write", o.target, o), handle(o[1], stage));
 }
 
 localget_kind.ana0 = function(o, stage) {
@@ -912,7 +956,10 @@ localget_kind.code0_write = function(o, stage) {
 }
 localset_kind.ana0 = globalset_kind.ana0;
 localset_kind.code0_write = function(o, stage) {
-    return format("(%s = %s)", handlestr(o.type, "access_write", o.target, o), handle(o[1], stage));
+    if (o.type.kind == "class")
+	return format("(*%s = *%s)", handlestr(o.type, "access_write", o.target, o), handle(o[1], stage));
+    else
+	return format("(%s = %s)", handlestr(o.type, "access_write", o.target, o), handle(o[1], stage));
 }
 
 nil_kind.ana0 = function(o) {
@@ -935,6 +982,8 @@ return_kind.ana0 = function(o, stage) {
 return_kind.code0_write = function(o, stage) {
     if (!o[1] || o[1].type == gettype("void", globalns))
 	outfi("goto __destructors;\n");
+    else if (o[1].type.kind == "class")
+	outfi("*__result = *%s; goto __destructors;\n", handle(o[1], stage));
     else
 	outfi("__result = %s; goto __destructors;\n", handle(o[1], stage));
 }

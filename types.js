@@ -25,7 +25,7 @@ var rtypes = { };
 function referencetype(type) {
     var res = rtypes[type];
     if (!res) {
-	print("new reference type", type.name);
+	//print("new reference type", type.name);
 	res = setkind({ type = type }, reference_kind);
 	res.__subtype = type;
 	rtypes[type] = res;
